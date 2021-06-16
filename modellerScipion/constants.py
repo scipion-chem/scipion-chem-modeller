@@ -35,3 +35,7 @@ MODELLER = 'modeller'
 
 FILE_INSTALLER = "\\n{}\\nInsertModellerLicenseKey\\n"
 
+AA_LIST = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
+           'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER',
+           'THR', 'TRP', 'TYR', 'VAL']
+

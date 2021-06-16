@@ -25,12 +25,13 @@
 # **************************************************************************
 
 from .protocols import modellerMutateResidue
-from pwem.wizards import GetStructureChainsWizard, pwobj
+from pwem.wizards import GetStructureChainsWizard, pwobj, EmWizard
 import pwem.convert as emconv
 import requests, os
 
 from pyworkflow.gui.tree import ListTreeProviderString
 from pyworkflow.gui import dialog
+from .constants import AA_LIST
 
 class selectChainWizard(GetStructureChainsWizard):
   _targets = [(modellerMutateResidue, ['mutChain'])]
@@ -123,3 +124,19 @@ class selectResidueWizard(selectChainWizard):
                             "Select one residue (residue number, "
                             "residue name)")
     form.setVar('mutPosition', dlg.values[0].get())
+
+class addMutationWizard(EmWizard):
+  _targets = [(modellerMutateResidue, ['addMutation'])]
+
+  def show(self, form, *params):
+    protocol = form.protocol
+    chain, pos, resId = protocol.mutChain.get(), protocol.mutPosition.get(), protocol.mutResidue.get()
+    res = AA_LIST[resId]
+    form.setVar('toMutateList', protocol.toMutateList.get() +
+                '{} | {} | {}\n'.format(chain, pos, res))
+    
+class clearMutationList(EmWizard):
+  _targets = [(modellerMutateResidue, ['clearLabel'])]
+
+  def show(self, form, *params):
+    form.setVar('toMutateList', '')
