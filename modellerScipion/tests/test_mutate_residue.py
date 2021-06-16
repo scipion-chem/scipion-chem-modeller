@@ -27,6 +27,10 @@
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pwem.protocols import ProtImportPdb
 from ..protocols import modellerMutateResidue
+from ..constants import AA_LIST
+
+textMutationListExample = '{"model": 0, "chain": "A", "residues": 141} | {"residue": 1, "VAL"} | TRP\n\
+{"model": 0, "chain": "B", "residues": 146} | {"residue": 2, "HIS"} | PRO\n'
 
 class TestModellerMutateRes(BaseTest):
     @classmethod
@@ -46,13 +50,13 @@ class TestModellerMutateRes(BaseTest):
         cls.protImportPDB = protImportPDB
 
     def _runModellerMutate(self):
-        TRP = 17
+        PRO = AA_LIST.index('PRO')
         protModeller = self.newProtocol(
             modellerMutateResidue,
             inputAtomStruct=self.protImportPDB.outputPdb,
-            mutChain='{"model": 0, "chain": "A", "residues": 141}',
-            mutPosition='{"residue": 1, "VAL"}',
-            mutResidue=TRP)
+            mutChain='{"model": 0, "chain": "B", "residues": 146}',
+            mutPosition='{"residue": 2, "HIS"}', mutResidue=PRO,
+            toMutateList=textMutationListExample)
 
         self.launchProtocol(protModeller)
         pdbOut = getattr(protModeller, 'mutatedPDB', None)

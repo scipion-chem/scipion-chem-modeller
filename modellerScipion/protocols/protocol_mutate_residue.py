@@ -39,6 +39,7 @@ import pyworkflow.utils as pwutils
 import os
 from pwem.objects.data import AtomStruct
 from modellerScipion import Plugin
+from ..constants import AA_LIST
 
 class modellerMutateResidue(EMProtocol):
     """
@@ -48,47 +49,70 @@ class modellerMutateResidue(EMProtocol):
     _label = 'Mutate structure residue'
 
     # -------------------------- DEFINE param functions ----------------------
+    def _addMutationForm(self, form):
+      form.addParam('mutChain', params.StringParam,
+                    allowsNull=False, label='Chain to mutate',
+                    help='Specify the protein chain to mutate')
+      form.addParam('mutPosition', params.StringParam,
+                    allowsNull=False, label='Position to mutate',
+                    help='Specify the residue position to mutate (int)')
+      form.addParam('mutResidue', params.EnumParam,
+                    choices=AA_LIST, label="Residue to introduce",
+                    help='Select the substitute residue which will be introduced')
+      form.addParam('addMutation', params.LabelParam,
+                    label='Add defined mutation',
+                    help='Add defined mutation to list')
+
     def _defineParams(self, form):
         """ """
-        aaChoices = self._get_aaChoices()
-
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('inputAtomStruct', params.PointerParam,
                        pointerClass='AtomStruct', allowsNull=False,
                        label="Input atom structure",
                        help='Select the atom structure to be fitted in the volume')
-        form.addParam('mutChain', params.StringParam,
-                      allowsNull=False, label='Chain to mutate',
-                      help='Specify the protein chain to mutate')
-        form.addParam('mutPosition', params.StringParam,
-                      allowsNull=False, label='Position to mutate',
-                      help='Specify the residue position to mutate (int)')
-        form.addParam('mutResidue', params.EnumParam,
-                      choices=aaChoices, label="Residue to introduce",
-                      help='Select the substitute residue which will be introduced')
+        group = form.addGroup('Add mutation')
+        self._addMutationForm(group)
+        group = form.addGroup('List of mutations')
+
+        group.addParam('toMutateList', params.TextParam, width=70,
+                      default='', label='List of mutations',
+                      help='List of chain | position | residue to mutate. '
+                           'They will be muted serially.')
+        group.addParam('clearLabel', params.LabelParam,
+                      label='Clear mutation list',
+                      help='Clear mutations list')
 
         form.addParam('seed', params.IntParam, label='Random seed', expertLevel=params.LEVEL_ADVANCED,
                       default=-49837, help='Random seed for modeller')
 
+    def _parseChain(self, chainLine):
+      return chainLine.split(',')[1].split(':')[1].strip().split('"')[1]
 
-    def _get_aaChoices(self):
-      return ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
-              'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER',
-              'THR', 'TRP', 'TYR', 'VAL']
+    def _parsePosition(self, posLine):
+      return posLine.split(":")[1].split(",")[0].strip()
 
-    def _parseChain(self):
-      return self.mutChain.get().split(',')[1].split(':')[1].strip().split('"')[1]
+    def _parseType(self, typeLine):
+      return typeLine.strip()
 
-    def _parsePosition(self):
-      return self.mutPosition.get().split(":")[1].split(",")[0].strip()
+    def parseMutations(self):
+      chains, respos, restypes = [], [], []
+      text = self.toMutateList.get()
+      for line in text.split('\n'):
+        if len(line.split('|'))==3:
+          chain, resp, restyp = line.split('|')
+          chains.append(self._parseChain(chain))
+          respos.append(self._parsePosition(resp))
+          restypes.append(self._parseType(restyp))
+      return chains, respos, restypes
 
     def _getModellerArgs(self):
       self.outputFolder, self.pdbFile = os.path.abspath(self._getExtraPath()), self._getPdbInputStruct()
-      restyp, respos = self.getEnumText('mutResidue'), self._parsePosition()
       modelbase, ext = os.path.splitext(self.pdbFile.split('/')[-1])
-      self.outputFile = '{}{}_{}{}.pdb'.format(self.outputFolder, modelbase, restyp, respos)
-      
-      args = ['-i', self.pdbFile, '-p', respos, '-r', restyp, '-c', self._parseChain(),
+      self.outputFile = '{}{}_mutant.pdb'.format(self.outputFolder, modelbase)
+
+      chains, respos, restypes = self.parseMutations()
+
+      args = ['-i', self.pdbFile, '-p', respos, '-r', restypes, '-c', chains,
               '-o', self.outputFile]
       return args
 
