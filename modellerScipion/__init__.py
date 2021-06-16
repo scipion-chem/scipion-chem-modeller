@@ -1,0 +1,89 @@
+# **************************************************************************
+# *
+# * Authors:  Daniel Del Hoyo (ddelhoyo@cnb.csic.es)
+# *
+# * Biocomputing Unit, CNB-CSIC
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
+import pwem
+from os.path import join
+from .constants import *
+
+_version_ = '0.1'
+_logo = "modeller_icon.png"
+_references = ['Webb2016']
+
+
+class Plugin(pwem.Plugin):
+    _homeVar = MODELLER_HOME
+    _pathVars = [MODELLER_HOME]
+    _supportedVersions = [V10_1]
+    _pluginHome = join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
+
+    @classmethod
+    def _defineVariables(cls):
+        """ Return and write a variable in the config file.
+        """
+        cls._defineEmVar(MODELLER_HOME, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
+
+    @classmethod
+    def defineBinaries(cls, env):
+        tmpParams= 'installModellerParams.txt'
+
+        installationCmd = 'wget %s -O %s && ' % (cls._getModellerDownloadUrl(), cls._getModellerTar())
+        installationCmd += 'tar -xf %s --strip-components 1 && ' % cls._getModellerTar()
+        installationCmd += 'rm %s && ' % cls._getModellerTar()
+
+        installationCmd += 'printf "%s" > %s && ' % (FILE_INSTALLER.format(cls._pluginHome), tmpParams)
+        installationCmd += './Install < %s > /dev/null 2>&1 && ' % tmpParams
+        installationCmd += 'rm %s && ' % tmpParams
+
+        # Creating validation file
+        MODELLER_INSTALLED = '%s_installed' % MODELLER
+        installationCmd += 'touch %s' % MODELLER_INSTALLED  # Flag installation finished
+
+        env.addPackage(MODELLER,
+                       version=MODELLER_DEFAULT_VERSION,
+                       tar='void.tgz',
+                       commands=[(installationCmd, MODELLER_INSTALLED)],
+                       neededProgs=["wget", "tar"],
+                       default=True)
+
+    @classmethod
+    def runModeller(cls, protocol, program, args, cwd=None):
+        """ Run Modeller command from a given protocol. """
+        modellerArgs = ['python3', program, *args]
+        protocol.runJob(join(cls._pluginHome, 'bin/modpy.sh'), modellerArgs, cwd=cwd)
+
+    @classmethod  #  Test that
+    def getEnviron(cls):
+        pass
+
+    # ---------------------------------- Utils functions  -----------------------
+    @classmethod
+    def _getModellerDownloadUrl(cls):
+        return "\'https://salilab.org/modeller/10.1/modeller-10.1.tar.gz\'"
+
+    @classmethod
+    def _getModellerTar(cls):
+        pluginHome = join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
+        return pluginHome + '/' + MODELLER + '-' + MODELLER_DEFAULT_VERSION + '.tar.gz'
