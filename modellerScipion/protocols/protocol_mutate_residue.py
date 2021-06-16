@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     you (ddelhoyo@cnb.csic.es)
+# * Authors: Daniel Del Hoyo (ddelhoyo@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -27,159 +27,107 @@
 
 
 """
-This protocol is used to perform a flexible fitting of a protein structure over a electron map.
-A rigid fitting for ensuring their prior best positions is needed before performing this flexible fitting.
+This protocol is used to perform a residue mutation in a protein structure.
+A energy optimization is performed over the mutated residue and its surroundings.
+
 """
-from pyworkflow.protocol import Protocol, params
-from pwem.objects.data import AtomStruct
-from pwem.emlib.image import ImageHandler
+from pyworkflow.protocol import params
+from pwem.protocols import EMProtocol
+from pwem.convert.atom_struct import toPdb
 from pyworkflow.utils import Message
 import pyworkflow.utils as pwutils
 import os
+from pwem.objects.data import AtomStruct
 from modellerScipion import Plugin
-import shutil
 
-class modellerMutateResidue(Protocol):
+class modellerMutateResidue(EMProtocol):
     """
-    Performs flexible fitting of a protein structure to a map.
-    Tutorial: https://chaconlab.org/hybrid4em/imodfit/imodfit-intro
+    Performs a residue substitution in a protein structure.
+    https://salilab.org/modeller/wiki/Mutate%20model
     """
     _label = 'Mutate structure residue'
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         """ """
-        cgChoices = self._get_cgChoices()
+        aaChoices = self._get_aaChoices()
 
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('inputVolume', params.PointerParam,
-                      pointerClass='Volume', allowsNull=False,
-                      label="Input volume",
-                      help='Target EM map')
-
         form.addParam('inputAtomStruct', params.PointerParam,
                        pointerClass='AtomStruct', allowsNull=False,
                        label="Input atom structure",
                        help='Select the atom structure to be fitted in the volume')
+        form.addParam('mutChain', params.StringParam,
+                      allowsNull=False, label='Chain to mutate',
+                      help='Specify the protein chain to mutate')
+        form.addParam('mutPosition', params.StringParam,
+                      allowsNull=False, label='Position to mutate',
+                      help='Specify the residue position to mutate (int)')
+        form.addParam('mutResidue', params.EnumParam,
+                      choices=aaChoices, label="Residue to introduce",
+                      help='Select the substitute residue which will be introduced')
 
-        form.addSection(label='Parameters')
-        group = form.addGroup('Parameters')
-        group.addParam('resolution', params.IntParam,
-                      default=10,
-                      label='Resolution in Angstroms',
-                      help='Resolution in Angstroms. The resolution criterion follows EMAN package procedures')
-        group.addParam('cutoff', params.FloatParam,
-                      default=0,
-                      label='EM density map threshold',
-                      help='EM density map threshold. All density levels below this value will not be considered.')
-        group.addParam('maxIter', params.IntParam,
-                      default=10000,
-                      label='Maximum iterations',
-                      help='Maximum number of iterations')
-        group.addParam('cgModel', params.EnumParam,
-                      choices=cgChoices, default=2,
-                      label='Coarse-Grained model',
-                      help='Coarse-Grained model: 0=CA, 1=3BB2R, 2=Full-Atom, 3=NCAC(experimental) (default=2)')
-        group.addParam('chiAngle', params.BooleanParam,
-                      default=False, expertLevel=params.LEVEL_ADVANCED,
-                      label='CHI dihedral angle',
-                      help='Considers first CHI dihedral angle (default=disabled)')
-        group.addParam('modesRange', params.FloatParam,
-                      default=0.2, expertLevel=params.LEVEL_ADVANCED,
-                      label='Used modes range',
-                      help='Used modes range, either number [1,N] <integer>, or ratio [0,1) <float> (default=0.2).')
-        group.addParam('excitedModesRange', params.FloatParam,
-                      default=0.02, expertLevel=params.LEVEL_ADVANCED,
-                      label='Excited modes range',
-                      help='Excited modes range, either number [1,nevs] <integer>, or ratio [0,1) <float> (default=0.02)')
+        form.addParam('seed', params.IntParam, label='Random seed', expertLevel=params.LEVEL_ADVANCED,
+                      default=-49837, help='Random seed for modeller')
 
-        group = form.addGroup('Output')
-        group.addParam('outputBasename', params.StringParam,
-                      default='imodfit', expertLevel=params.LEVEL_ADVANCED,
-                      label='Output basename',
-                      help='Output files basename (default=imodfit)')
-        group.addParam('fullAtom', params.BooleanParam,
-                      default=False, expertLevel=params.LEVEL_ADVANCED,
-                      label='Full-atom output',
-                      help='Enables full-atom output models')
-        group.addParam('outputMovie', params.BooleanParam,
-                      default=True,
-                      label='Outputs a Multi-PDB',
-                      help=' 	Outputs a Multi-PDB trajectory movie (<basename_movie>.pdb)')
 
-        group = form.addGroup('Extra')
-        group.addParam('extraParams', params.StringParam,
-                       default='',
-                       label='Extra parameters',
-                       help='Extra parameters as expected from the command line.'
-                            'https://chaconlab.org/hybrid4em/imodfit/imodfit-intro')
+    def _get_aaChoices(self):
+      return ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
+              'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER',
+              'THR', 'TRP', 'TYR', 'VAL']
 
-    def _get_cgChoices(self):
-      return ['CA', '3BB2R', 'Full-Atom', 'NCAC']
+    def _parseChain(self):
+      return self.mutChain.get().split(',')[1].split(':')[1].strip().split('"')[1]
 
-    def _getImodfitArgs(self):
-      ccp4AbsPath = os.path.abspath(self.ccp4File)
-      #ccp4AbsPath = '/home/danieldh/i2pc/software/em/iMODfit-1.51/imodfit_test/1oel.ccp4'
-      #Standard arguments
-      args = [self.pdbFile, ccp4AbsPath, self.resolution.get(), self.cutoff.get()]
-      args += ['-i {}'.format(self.maxIter.get()), '-m {}'.format(self.cgModel.get())]
-      if self.chiAngle.get():
-        args += ['-x']
-      args += ['-n {}'.format(self.modesRange.get()), '-e {}'.format(self.excitedModesRange.get())]
+    def _parsePosition(self):
+      return self.mutPosition.get().split(":")[1].split(",")[0].strip()
 
-      #Output arguments
-      if self.outputBasename.get() != 'imodfit':
-        args += ['-o {}'.format(self.outputBasename.get())]
-      if self.fullAtom.get():
-        args += ['-F']
-      if self.outputMovie.get():
-        args += ['-t']
-
-      #Extra parameters
-      if self.extraParams.get() != '':
-        args += ['{}'.format(self.extraParams.get())]
+    def _getModellerArgs(self):
+      self.outputFolder, self.pdbFile = os.path.abspath(self._getExtraPath()), self._getPdbInputStruct()
+      restyp, respos = self.getEnumText('mutResidue'), self._parsePosition()
+      modelbase, ext = os.path.splitext(self.pdbFile.split('/')[-1])
+      self.outputFile = '{}{}_{}{}.pdb'.format(self.outputFolder, modelbase, restyp, respos)
+      
+      args = ['-i', self.pdbFile, '-p', respos, '-r', restyp, '-c', self._parseChain(),
+              '-o', self.outputFile]
       return args
 
-    def _getMrcInputVol(self):
-      inpVol = self.inputVolume.get()
-      # Input volume as a ccp4 file
-      name, ext = os.path.splitext(inpVol.getFileName())
-      if ext != '.mrc':
-        mrcFile = self._getExtraPath(pwutils.replaceBaseExt(inpVol.getFileName(), 'mrc'))
-        _ih = ImageHandler()
-        _ih.convert(inpVol, mrcFile)
+    def _getScriptsFolder(self):
+      thisFile = os.path.realpath(__file__)
+      path = []
+      for step in thisFile.split('/'):
+        path.append(step)
+        if step == 'scipion-chem-modeller':
+          break
+      return '/'+os.path.join(*path)+'/modellerScipion/scripts-10_1/'
+
+    def _getPdbInputStruct(self):
+      inpStruct = self.inputAtomStruct.get()
+      name, ext = os.path.splitext(inpStruct.getFileName())
+      if ext != '.pdb':
+        if ext == '.cif':
+          cifFile = inpStruct.getFileName()
+          pdbFile = self._getExtraPath(pwutils.replaceBaseExt(cifFile, 'pdb'))
+          toPdb(cifFile, pdbFile)
+
       else:
-        mrcFile = inpVol.getFileName()
-      return mrcFile
+        pdbFile = inpStruct.getFileName()
+      return os.path.abspath(pdbFile)
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         # Insert processing steps
-        self._insertFunctionStep('convertInputStep')
-        self._insertFunctionStep('imodfitStep')
+        self._insertFunctionStep('modellerStep')
         self._insertFunctionStep('createOutputStep')
 
-    def convertInputStep(self):
-      mrcFile = self._getMrcInputVol()
-      self.ccp4File = self._getExtraPath(pwutils.replaceBaseExt(mrcFile, 'ccp4'))
-      shutil.copy(mrcFile, self.ccp4File)
-
-      self.pdbFile = os.path.abspath(self.inputAtomStruct.get().getFileName())
-
-    def imodfitStep(self):
-      #TODO: ver como llamarlo guachi
-      Plugin.runModeller(self, 'scripts/mutate_residue.py',
-                        args=self._getImodfitArgs(),
-                        cwd=self._getExtraPath())
+    def modellerStep(self):
+        Plugin.runModeller(self, self._getScriptsFolder()+'mutate_residue.py',
+                          args=self._getModellerArgs(), cwd=self._getExtraPath())
 
     def createOutputStep(self):
-        fittedPDB = AtomStruct(self._getExtraPath('{}_fitted.pdb'.format(self.outputBasename.get())))
-        moviePDB = AtomStruct(self._getExtraPath('{}_movie.pdb'.format(self.outputBasename.get())))
-        fittedPDB.setVolume(self.inputVolume.get())
-        moviePDB.setVolume(self.inputVolume.get())
-
-        self._defineOutputs(fittedPDB=fittedPDB)
-        self._defineOutputs(moviePDB=moviePDB)
+        print('Output file: ', self.outputFile)
+        mutatedPDB = AtomStruct(self.outputFile)
+        self._defineOutputs(mutatedPDB=mutatedPDB)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
