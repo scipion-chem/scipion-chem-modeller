@@ -72,7 +72,6 @@ def mutateResidue():
     modelname, chains, respos, restypes = args.inputFilename, \
                                           eval(args.chains), eval(args.positions), eval(args.newResidues)
     seed, outputFile = args.seed, args.outputFile
-
     log.verbose()
 
     # Set a different value for rand_seed to get a different final model
@@ -100,16 +99,13 @@ def mutateResidue():
 
     for mutIdx in range(len(respos)):
         chain, resp, restyp = chains[mutIdx], respos[mutIdx], restypes[mutIdx]
-        print(chain, resp, restyp)
         #set up the mutate residue selection segment
         s = Selection(mdl1.chains[chain].residues[resp])
-        print(1)
 
         #perform the mutate residue operation
         s.mutate(residue_type=restyp)
         #get two copies of the sequence.  A modeller trick to get things set up
         ali.append_model(mdl1, align_codes=modelname)
-        print(2)
         # Generate molecular topology for mutant
         mdl1.clear_topology()
         mdl1.generate_topology(ali[-1])
@@ -119,13 +115,11 @@ def mutateResidue():
         # file is not standard):
         #here we are generating the model by reading the template coordinates
         mdl1.transfer_xyz(ali)
-        print(3)
         # Build the remaining unknown coordinates
         mdl1.build(initialize_xyz=False, build_method='INTERNAL_COORDINATES')
 
         #yes model2 is the same file as model1.  It's a modeller trick.
         mdl2 = Model(env, file=modelname)
-        print(4)
         #required to do a transfer_res_numb
         #ali.append_model(mdl2, atom_files=modelname, align_codes=modelname)
         #transfers from "model 2" to "model 1"

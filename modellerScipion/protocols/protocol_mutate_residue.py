@@ -106,9 +106,9 @@ class modellerMutateResidue(EMProtocol):
       return chains, respos, restypes
 
     def _getModellerArgs(self):
-      self.outputFolder, self.pdbFile = os.path.abspath(self._getExtraPath()), self._getPdbInputStruct()
+      self.outputFolder, self.pdbFile = os.path.abspath(self._getPath()), self._getPdbInputStruct()
       modelbase, ext = os.path.splitext(self.pdbFile.split('/')[-1])
-      self.outputFile = '{}{}_mutant.pdb'.format(self.outputFolder, modelbase)
+      self.outputFile = '{}/{}_mutant.pdb'.format(self.outputFolder, modelbase)
 
       chains, respos, restypes = self.parseMutations()
 
@@ -129,7 +129,6 @@ class modellerMutateResidue(EMProtocol):
       inpStruct = self.inputAtomStruct.get()
       name, ext = os.path.splitext(inpStruct.getFileName())
       if ext != '.pdb':
-        if ext == '.cif':
           cifFile = inpStruct.getFileName()
           pdbFile = self._getExtraPath(pwutils.replaceBaseExt(cifFile, 'pdb'))
           toPdb(cifFile, pdbFile)
@@ -149,7 +148,6 @@ class modellerMutateResidue(EMProtocol):
                           args=self._getModellerArgs(), cwd=self._getExtraPath())
 
     def createOutputStep(self):
-        print('Output file: ', self.outputFile)
         mutatedPDB = AtomStruct(self.outputFile)
         self._defineOutputs(mutatedPDB=mutatedPDB)
 
