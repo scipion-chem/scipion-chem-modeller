@@ -85,6 +85,68 @@ class modellerMutateResidue(EMProtocol):
         form.addParam('seed', params.IntParam, label='Random seed', expertLevel=params.LEVEL_ADVANCED,
                       default=-49837, help='Random seed for modeller')
 
+        form.addSection(label='Energy objective functions')
+        group = form.addGroup('Main parameters')
+        group.addParam('contactShell', params.FloatParam, default=4.0,
+                       label='Nonbond distance cutoff', important=True,
+                       help='This defines the maximal distance between atoms that flags a non-bonded atom pair. '
+                            'Such pairs are stored in the list of non-bonded atom pairs. Only those non-bonded pairs '
+                            'that are sufficiently close to each other will result in an actual non-bonded restraint. '
+                            'https://salilab.org/modeller/9.9/manual/node122.html')
+        group.addParam('updateDynamic', params.FloatParam, default=0.39,
+                       label='Nonbond recalculation threshold', important=True,
+                       help='This sets the cumulative maximal atomic shift during optimization that triggers '
+                            'recalculation of the list of atom-atom non-bonded pairs. It should be set in combination '
+                            'with contact_shell. https://salilab.org/modeller/9.9/manual/node123.html')
+
+        group = form.addGroup('Energy restrains')
+        group.addParam('dynamicSphere', params.BooleanParam, default=True,
+                       label='Calculate soft-sphere overlap restraints', important=True,
+                       help='The dynamic soft-sphere overlap restraints are calculated. Note that they are only '
+                            'calculated if the scaled standard deviation of the soft-sphere overlap restraints is '
+                            'greater than zero. The soft-sphere potential is simply a lower bound harmonic restraint '
+                            'https://salilab.org/modeller/9.9/manual/node125.html')
+        group.addParam('sphereStdv', params.FloatParam, default=0.05, condition='dynamicSphere==True',
+                       label='Soft-sphere standard deviation', expertLevel=params.LEVEL_ADVANCED,
+                       help="The dynamic soft-sphere overlap restraints are calculated. "
+                            "The soft-sphere potential is simply a lower bound harmonic restraint, "
+                            "with standard deviation sphereStdv, dropping to zero at the sum of "
+                            "the two atoms' van der Waals radii: https://salilab.org/modeller/9.9/manual/node124.html")
+        group.addParam('lennardJones', params.BooleanParam, default=False,
+                      label='Calculate Lennard-Jones restraints', important=True,
+                      help='Dynamic Lennard-Jones restraints are calculated, using equation: '
+                           'https://salilab.org/modeller/9.9/manual/node459.html#eq:lennard')
+        group.addParam('LJSwitch1', params.FloatParam, default=6.5, condition='lennardJones==True',
+                       label='Lennard-Jones switching parameter 1', expertLevel=params.LEVEL_ADVANCED,
+                       help="This is the parameter f_1 to the Lennard-Jones switching function, "
+                            "which smoothes the potential down to zero")
+        group.addParam('LJSwitch2', params.FloatParam, default=7.5, condition='lennardJones==True',
+                       label='Lennard-Jones switching parameter 2', expertLevel=params.LEVEL_ADVANCED,
+                       help="This is the parameter f_2 to the Lennard-Jones switching function, "
+                            "which smoothes the potential down to zero")
+        group.addParam('coulomb', params.BooleanParam, default=False,
+                       label='Calculate Coulomb restraints', important=True,
+                       help='Dynamic Coulomb (electrostatic) restraints are calculated '
+                            'https://salilab.org/modeller/9.9/manual/node459.html#eq:coulomb')
+        group.addParam('CouSwitch1', params.FloatParam, default=6.5, condition='coulomb==True',
+                       label='Coulomb switching parameter 1', expertLevel=params.LEVEL_ADVANCED,
+                       help="This is the parameter f_1 to the Coulomb switching function, "
+                            "which smoothes the potential down to zero")
+        group.addParam('CouSwitch2', params.FloatParam, default=7.5, condition='coulomb==True',
+                       label='Coulomb switching parameter 2', expertLevel=params.LEVEL_ADVANCED,
+                       help="This is the parameter f_2 to the Coulomb switching function, "
+                            "which smoothes the potential down to zero")
+        group.addParam('relativeDielectric', params.FloatParam, default=1.0, condition='coulomb==True',
+                       label='Relative dielectric', expertLevel=params.LEVEL_ADVANCED,
+                       help="This sets the relative dielectric epsilon_r , used in the calculation"
+                            "of the Coulomb energy")
+        group.addParam('dynamicModeller', params.BooleanParam, default=False,
+                       label='Calculate non-bonded spline restraints', important=True,
+                       help='Dynamic MODELLER non-bonded spline restraints are calculated. These include the loop '
+                            'modeling potential and DOPE: https://salilab.org/modeller/9.9/manual/node128.html')
+
+
+
     def _parseChain(self, chainLine):
       return chainLine.split(',')[1].split(':')[1].strip().split('"')[1]
 
@@ -112,8 +174,20 @@ class modellerMutateResidue(EMProtocol):
 
       chains, respos, restypes = self.parseMutations()
 
-      args = ['-i', self.pdbFile, '-p', respos, '-r', restypes, '-c', chains,
+      args = ['-i', self.pdbFile, '-p', respos, '-r', restypes, '-c', chains, '-s', self.seed.get(),
               '-o', self.outputFile]
+
+      args += ['-contactShell', self.contactShell.get(), '-updateDynamic', self.updateDynamic.get()]
+      if self.dynamicSphere.get():
+        args += ['--dynamicSphere', '-sphereStdv', self.sphereStdv.get()]
+      if self.lennardJones.get():
+        args += ['--lennardJones', '-LJSwitch1', self.LJSwitch1.get(), '-LJSwitch2', self.LJSwitch2.get()]
+      if self.coulomb.get():
+        args += ['--coulomb', '-CouSwitch1', self.CouSwitch1.get(), '-CouSwitch2', self.CouSwitch2.get(),
+                 '-relativeDielectric', self.relativeDielectric.get()]
+      if self.dynamicModeller.get():
+        args += ['--dynamicModeller']
+
       return args
 
     def _getScriptsFolder(self):

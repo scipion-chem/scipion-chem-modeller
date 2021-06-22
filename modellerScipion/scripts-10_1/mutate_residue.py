@@ -63,27 +63,58 @@ def mutateResidue():
     parser = argparse.ArgumentParser(description='Mutate residue from a given chain of a pdb file')
     parser.add_argument('-i', '--inputFilename', type=str, help='Input pdb file')
     parser.add_argument('-p', '--positions', type=str, help='Residue position to mutate')
-    parser.add_argument('-r', '--newResidues',type=str, help='Residue to add in the substitution')
-    parser.add_argument('-c', '--chains',type=str, help='Chain of the protein to mutate')
-    parser.add_argument('-s', '--seed',type=int, default=-49837, required=False, help='Random seed')
-    parser.add_argument('-o', '--outputFile',type=str, help='Output file')
+    parser.add_argument('-r', '--newResidues', type=str, help='Residue to add in the substitution')
+    parser.add_argument('-c', '--chains', type=str, help='Chain of the protein to mutate')
+    parser.add_argument('-s', '--seed', type=int, default=-49837, required=False, help='Random seed')
+    parser.add_argument('-o', '--outputFile', type=str, help='Output file')
+
+    parser.add_argument('-contactShell', type=float, default=4.0, required=False)
+    parser.add_argument('-updateDynamic', type=float, default=0.39, required=False)
+
+    parser.add_argument('--dynamicSphere', default=False, action='store_true')
+    parser.add_argument('-sphereStdv', type=float, default=0.05, required=False)
+
+    parser.add_argument('--lennardJones', default=False, action='store_true')
+    parser.add_argument('-LJSwitch1', type=float, default=6.5, required=False)
+    parser.add_argument('-LJSwitch2', type=float, default=7.5, required=False)
+
+    parser.add_argument('--coulomb', default=False, action='store_true')
+    parser.add_argument('-CouSwitch1', type=float, default=6.5, required=False)
+    parser.add_argument('-CouSwitch2', type=float, default=7.5, required=False)
+    parser.add_argument('-relativeDielectric', type=float, default=1.0, required=False)
+
+    parser.add_argument('--dynamicModeller', default=False, action='store_true')
 
     args = parser.parse_args()
-    modelname, chains, respos, restypes = args.inputFilename, \
-                                          eval(args.chains), eval(args.positions), eval(args.newResidues)
+    modelname, chains, respos, restypes = args.inputFilename, eval(args.chains), \
+                                          eval(args.positions), eval(args.newResidues)
     seed, outputFile = args.seed, args.outputFile
     log.verbose()
 
     # Set a different value for rand_seed to get a different final model
     env = Environ(rand_seed=seed)
-
     env.io.hetatm = True
+
     #soft sphere potential
-    env.edat.dynamic_sphere=False
+    if args.dynamicSphere:
+        env.edat.sphere_stdv = args.sphereStdv
+    else:
+        env.edat.dynamic_sphere = False
     #lennard-jones potential (more accurate)
-    env.edat.dynamic_lennard=True
-    env.edat.contact_shell = 4.0
-    env.edat.update_dynamic = 0.39
+    if args.lennardJones:
+        env.edat.dynamic_lennard = True
+        env.edat.lennard_jones_switch = [args.LJSwitch1, args.LJSwitch2]
+
+    if args.coulomb:
+        env.edat.dynamic_coulomb = True
+        env.edat.coulomb_switch = [args.CouSwitch1, args.CouSwitch2]
+        env.edat.relative_dielectric = args.relativeDielectric
+
+    if args.dynamicModeller:
+        env.edat.dynamic_modeller = True
+
+    env.edat.contact_shell = args.contactShell
+    env.edat.update_dynamic = args.updateDynamic
 
     # Read customized topology file with phosphoserines (or standard one)
     env.libs.topology.read(file='$(LIB)/top_heav.lib')
