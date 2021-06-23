@@ -1,3 +1,2 @@
 scipion-pyworkflow
 scipion-em
-scipion-em-bioinformatics

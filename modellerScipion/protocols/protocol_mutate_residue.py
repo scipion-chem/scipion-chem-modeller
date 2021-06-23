@@ -61,7 +61,8 @@ class modellerMutateResidue(EMProtocol):
                     help='Select the substitute residue which will be introduced')
       form.addParam('addMutation', params.LabelParam,
                     label='Add defined mutation',
-                    help='Add defined mutation to list')
+                    help='Here you can define a mutation which will be added to the list of mutations below.'
+                         'Modeller will be used to sequentially perform the mutations you define in the list.')
 
     def _defineParams(self, form):
         """ """
@@ -77,7 +78,7 @@ class modellerMutateResidue(EMProtocol):
         group.addParam('toMutateList', params.TextParam, width=70,
                       default='', label='List of mutations',
                       help='List of chain | position | residue to mutate. '
-                           'They will be muted serially.')
+                           'The mutations here will be performed sequentially using the modeller software.')
         group.addParam('clearLabel', params.LabelParam,
                       label='Clear mutation list',
                       help='Clear mutations list')
@@ -200,16 +201,8 @@ class modellerMutateResidue(EMProtocol):
       return '/'+os.path.join(*path)+'/modellerScipion/scripts-10_1/'
 
     def _getPdbInputStruct(self):
-      inpStruct = self.inputAtomStruct.get()
-      name, ext = os.path.splitext(inpStruct.getFileName())
-      if ext != '.pdb':
-          cifFile = inpStruct.getFileName()
-          pdbFile = self._getExtraPath(pwutils.replaceBaseExt(cifFile, 'pdb'))
-          toPdb(cifFile, pdbFile)
-
-      else:
-        pdbFile = inpStruct.getFileName()
-      return os.path.abspath(pdbFile)
+      structFile = self.inputAtomStruct.get().getFileName()
+      return os.path.abspath(structFile)
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
