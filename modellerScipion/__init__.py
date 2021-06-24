@@ -27,6 +27,7 @@
 import pwem
 from os.path import join
 from .constants import *
+from pyworkflow.utils import yellowStr
 
 _version_ = '0.1'
 _logo = "modeller_icon.png"
@@ -74,13 +75,12 @@ class Plugin(pwem.Plugin):
         modellerArgs = ['python3', program, *args]
         protocol.runJob(join(cls._pluginHome, 'bin/modpy.sh'), modellerArgs, cwd=cwd)
 
-    @classmethod  #  Test that
-    def getEnviron(cls):
-        pass
-
     # ---------------------------------- Utils functions  -----------------------
     @classmethod
     def _getModellerDownloadUrl(cls):
+        print(yellowStr('\nOnce Modeller is downloaded and installed, remember to write the license key '
+                        'in file {}/modlib/modeller/config.py. This key can be obtained by registration in '
+                        'https://salilab.org/modeller/registration.html\n'.format(cls._pluginHome)))
         return "\'https://salilab.org/modeller/10.1/modeller-10.1.tar.gz\'"
 
     @classmethod

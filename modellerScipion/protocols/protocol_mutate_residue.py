@@ -33,9 +33,7 @@ A energy optimization is performed over the mutated residue and its surroundings
 """
 from pyworkflow.protocol import params
 from pwem.protocols import EMProtocol
-from pwem.convert.atom_struct import toPdb
 from pyworkflow.utils import Message
-import pyworkflow.utils as pwutils
 import os
 from pwem.objects.data import AtomStruct
 from modellerScipion import Plugin
