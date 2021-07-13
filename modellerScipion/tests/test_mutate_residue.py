@@ -59,7 +59,7 @@ class TestModellerMutateRes(BaseTest):
             toMutateList=textMutationListExample)
 
         self.launchProtocol(protModeller)
-        pdbOut = getattr(protModeller, 'mutatedPDB', None)
+        pdbOut = getattr(protModeller, 'mutatedAtomStruct', None)
         self.assertIsNotNone(pdbOut)
 
     def test_mutateResidue(self):
