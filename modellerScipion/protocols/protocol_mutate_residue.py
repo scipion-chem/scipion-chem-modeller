@@ -39,7 +39,7 @@ from pwem.objects.data import AtomStruct
 from modellerScipion import Plugin
 from ..constants import AA_LIST
 
-class modellerMutateResidue(EMProtocol):
+class ModellerMutateResidue(EMProtocol):
     """
     Performs a residue substitution in a protein structure.
     https://salilab.org/modeller/wiki/Mutate%20model

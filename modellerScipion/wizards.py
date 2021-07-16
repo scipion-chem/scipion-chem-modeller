@@ -24,7 +24,7 @@
 # *
 # **************************************************************************
 
-from .protocols import modellerMutateResidue
+from .protocols import ModellerMutateResidue
 from pwem.wizards import GetStructureChainsWizard, pwobj, EmWizard
 import pwem.convert as emconv
 import requests, os
@@ -33,8 +33,8 @@ from pyworkflow.gui.tree import ListTreeProviderString
 from pyworkflow.gui import dialog
 from .constants import AA_LIST
 
-class selectChainWizard(GetStructureChainsWizard):
-  _targets = [(modellerMutateResidue, ['mutChain'])]
+class SelectChainWizard(GetStructureChainsWizard):
+  _targets = [(ModellerMutateResidue, ['mutChain'])]
 
   @classmethod
   def getModelsChainsStep(cls, protocol):
@@ -86,8 +86,8 @@ class selectChainWizard(GetStructureChainsWizard):
                             "number of chain residues)")
     form.setVar('mutChain', dlg.values[0].get())
 
-class selectResidueWizard(selectChainWizard):
-  _targets = [(modellerMutateResidue, ['mutPosition'])]
+class SelectResidueWizard(SelectChainWizard):
+  _targets = [(ModellerMutateResidue, ['mutPosition'])]
 
   def editionListOfResidues(self, modelsFirstResidue, model, chain):
     self.residueList = []
@@ -125,8 +125,8 @@ class selectResidueWizard(selectChainWizard):
                             "residue name)")
     form.setVar('mutPosition', dlg.values[0].get())
 
-class addMutationWizard(EmWizard):
-  _targets = [(modellerMutateResidue, ['addMutation'])]
+class AddMutationWizard(EmWizard):
+  _targets = [(ModellerMutateResidue, ['addMutation'])]
 
   def show(self, form, *params):
     protocol = form.protocol
@@ -135,8 +135,8 @@ class addMutationWizard(EmWizard):
     form.setVar('toMutateList', protocol.toMutateList.get() +
                 '{} | {} | {}\n'.format(chain, pos, res))
     
-class clearMutationList(EmWizard):
-  _targets = [(modellerMutateResidue, ['clearLabel'])]
+class ClearMutationList(EmWizard):
+  _targets = [(ModellerMutateResidue, ['clearLabel'])]
 
   def show(self, form, *params):
     form.setVar('toMutateList', '')
