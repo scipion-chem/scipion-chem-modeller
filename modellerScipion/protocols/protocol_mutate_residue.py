@@ -33,15 +33,13 @@ A energy optimization is performed over the mutated residue and its surroundings
 """
 from pyworkflow.protocol import params
 from pwem.protocols import EMProtocol
-from pwem.convert.atom_struct import toPdb
 from pyworkflow.utils import Message
-import pyworkflow.utils as pwutils
 import os
 from pwem.objects.data import AtomStruct
 from modellerScipion import Plugin
 from ..constants import AA_LIST
 
-class modellerMutateResidue(EMProtocol):
+class ModellerMutateResidue(EMProtocol):
     """
     Performs a residue substitution in a protein structure.
     https://salilab.org/modeller/wiki/Mutate%20model
@@ -169,13 +167,13 @@ class modellerMutateResidue(EMProtocol):
       return chains, respos, restypes
 
     def _getModellerArgs(self):
-      self.outputFolder, self.pdbFile = os.path.abspath(self._getPath()), self._getPdbInputStruct()
-      modelbase, ext = os.path.splitext(self.pdbFile.split('/')[-1])
+      self.outputFolder, self.ASFile = os.path.abspath(self._getPath()), self._getFileInputStruct()
+      modelbase, ext = os.path.splitext(self.ASFile.split('/')[-1])
       self.outputFile = '{}/{}_mutant.pdb'.format(self.outputFolder, modelbase)
 
       chains, respos, restypes = self.parseMutations()
 
-      args = ['-i', self.pdbFile, '-p', respos, '-r', restypes, '-c', chains, '-s', self.seed.get(),
+      args = ['-i', self.ASFile, '-p', respos, '-r', restypes, '-c', chains, '-s', self.seed.get(),
               '-o', self.outputFile]
 
       args += ['-contactShell', self.contactShell.get(), '-updateDynamic', self.updateDynamic.get()]
@@ -200,7 +198,7 @@ class modellerMutateResidue(EMProtocol):
           break
       return '/'+os.path.join(*path)+'/modellerScipion/scripts-10_1/'
 
-    def _getPdbInputStruct(self):
+    def _getFileInputStruct(self):
       structFile = self.inputAtomStruct.get().getFileName()
       return os.path.abspath(structFile)
 
@@ -215,8 +213,8 @@ class modellerMutateResidue(EMProtocol):
                           args=self._getModellerArgs(), cwd=self._getExtraPath())
 
     def createOutputStep(self):
-        mutatedPDB = AtomStruct(self.outputFile)
-        self._defineOutputs(mutatedPDB=mutatedPDB)
+        mutatedAS = AtomStruct(self.outputFile)
+        self._defineOutputs(mutatedAtomStruct=mutatedAS)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

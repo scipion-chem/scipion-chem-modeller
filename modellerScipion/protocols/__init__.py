@@ -4,4 +4,4 @@
 # Find documentation here: https://scipion-em.github.io/docs/docs/developer/creating-a-protocol
 # **************************************************************************
 
-from .protocol_mutate_residue import modellerMutateResidue
+from .protocol_mutate_residue import ModellerMutateResidue
