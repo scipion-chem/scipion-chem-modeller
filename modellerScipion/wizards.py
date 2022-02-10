@@ -33,40 +33,10 @@ from pyworkflow.gui.tree import ListTreeProviderString
 from pyworkflow.gui import dialog
 from .constants import AA_LIST
 
-class SelectChainWizard(GetStructureChainsWizard):
+from pwchem.wizards import SelectChainWizard
+
+class SelectChainWizardModeller(SelectChainWizard):
   _targets = [(ModellerMutateResidue, ['mutChain'])]
-
-  @classmethod
-  def getModelsChainsStep(cls, protocol):
-    """ Returns (1) list with the information
-       {"model": %d, "chain": "%s", "residues": %d} (modelsLength)
-       (2) list with residues, position and chain (modelsFirstResidue)"""
-    structureHandler = emconv.AtomicStructHandler()
-    fileName = ""
-    if hasattr(protocol, 'pdbId'):
-      if protocol.pdbId.get() is not None:
-        pdbID = protocol.pdbId.get()
-        url = "https://www.rcsb.org/structure/"
-        URL = url + ("%s" % pdbID)
-        try:
-          response = requests.get(URL)
-        except:
-          raise Exception("Cannot connect to PDB server")
-        if (response.status_code >= 400) and (response.status_code < 500):
-          raise Exception("%s is a wrong PDB ID" % pdbID)
-        fileName = structureHandler.readFromPDBDatabase(
-          os.path.basename(pdbID), dir="/tmp/")
-      else:
-        fileName = protocol.pdbFile.get()
-    else:
-      if protocol.inputAtomStruct.get() is not None:
-        fileName = os.path.abspath(protocol.inputAtomStruct.get(
-        ).getFileName())
-
-    structureHandler.read(fileName)
-    structureHandler.getStructure()
-    # listOfChains, listOfResidues = structureHandler.getModelsChains()
-    return structureHandler.getModelsChains()
 
   def show(self, form, *params):
     protocol = form.protocol
@@ -86,7 +56,7 @@ class SelectChainWizard(GetStructureChainsWizard):
                             "number of chain residues)")
     form.setVar('mutChain', dlg.values[0].get())
 
-class SelectResidueWizard(SelectChainWizard):
+class SelectResidueWizardModeller(SelectChainWizard):
   _targets = [(ModellerMutateResidue, ['mutPosition'])]
 
   def editionListOfResidues(self, modelsFirstResidue, model, chain):
