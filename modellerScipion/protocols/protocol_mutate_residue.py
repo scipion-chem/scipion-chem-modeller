@@ -31,11 +31,13 @@ This protocol is used to perform a residue mutation in a protein structure.
 A energy optimization is performed over the mutated residue and its surroundings.
 
 """
+
+import os, json
 from pyworkflow.protocol import params
-from pwem.protocols import EMProtocol
 from pyworkflow.utils import Message
-import os
+from pwem.protocols import EMProtocol
 from pwem.objects.data import AtomStruct
+
 from modellerScipion import Plugin
 from ..constants import AA_LIST
 
@@ -147,10 +149,10 @@ class ModellerMutateResidue(EMProtocol):
 
 
     def _parseChain(self, chainLine):
-      return chainLine.split(',')[1].split(':')[1].strip().split('"')[1]
+      return json.loads(chainLine)['chain']
 
     def _parsePosition(self, posLine):
-      return posLine.split(":")[1].split(",")[0].strip()
+      return json.loads(posLine)['index'].split('-')[0]
 
     def _parseType(self, typeLine):
       return typeLine.strip()
@@ -161,9 +163,9 @@ class ModellerMutateResidue(EMProtocol):
       for line in text.split('\n'):
         if len(line.split('|'))==3:
           chain, resp, restyp = line.split('|')
-          chains.append(self._parseChain(chain))
-          respos.append(self._parsePosition(resp))
-          restypes.append(self._parseType(restyp))
+          chains.append(self._parseChain(chain.strip()))
+          respos.append(self._parsePosition(resp.strip()))
+          restypes.append(self._parseType(restyp.strip()))
       return chains, respos, restypes
 
     def _getModellerArgs(self):
@@ -224,3 +226,13 @@ class ModellerMutateResidue(EMProtocol):
     def _methods(self):
         methods = []
         return methods
+
+    def _validate(self):
+        errors = []
+        for i, line in enumerate(self.toMutateList.get().strip().split('\n')):
+            residue = line.split('|')[1].strip()
+            idxs = json.loads(residue)['index']
+            if idxs.split('-')[0] != idxs.split('-')[1]:
+                errors.append('Error in mutation nº {}: '
+                              'Modeller protocol designed to produce one point substitutions.'.format(i+1))
+        return errors
