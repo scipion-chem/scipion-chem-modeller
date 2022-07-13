@@ -24,8 +24,12 @@
 # *
 # **************************************************************************
 
-from .protocols import ModellerMutateResidue
-from pwem.wizards import SelectChainWizard, SelectResidueWizard, pwobj, EmWizard
+import json, os
+
+from .protocols import ModellerMutateResidue, ModellerComparativeModelling
+from pwem.wizards import SelectChainWizard, SelectResidueWizard, EmWizard, VariableWizard
+
+from pwchem.wizards import SelectChainWizardQT, SelectResidueWizardQT
 
 from .constants import AA_LIST
 
@@ -54,3 +58,72 @@ class ClearMutationList(EmWizard):
 
   def show(self, form, *params):
     form.setVar('toMutateList', '')
+
+
+class AddStructSequenceWizard(SelectResidueWizard):
+    _targets, _inputs, _outputs = [], {}, {}
+  
+    def show(self, form, *params):
+        protocol = form.protocol
+        inputParams, outputParam = self.getInputOutput(form)
+
+        # StructName
+        inputTemplate = getattr(protocol, inputParams[0]).get()
+        pdbFile = ''
+        if issubclass(type(inputTemplate), str):
+            outStr = [inputTemplate]
+        else:
+            pdbFile = inputTemplate.getFileName()
+            outStr = [os.path.splitext(os.path.basename(pdbFile))[0]]
+
+        # Chain
+        chainJson = getattr(protocol, inputParams[1]).get()
+        chainId = json.loads(chainJson)['chain']
+        outStr += [chainId]
+
+        # Positions
+        posJson = getattr(protocol, inputParams[2]).get()
+        if posJson:
+            posIdxs = json.loads(posJson)['index']
+            seq = json.loads(posJson)['residues']
+            outStr += [posIdxs]
+        else:
+            outStr += ['FIRST-LAST']
+            finalResiduesList = self.getResidues(form, inputParams)
+            idxs = [json.loads(finalResiduesList[0].get())['index'], json.loads(finalResiduesList[-1].get())['index']]
+            seq = self.getSequence(finalResiduesList, idxs)
+
+        prevStr = getattr(protocol, outputParam[0]).get()
+        lenPrev = len(prevStr.strip().split('\n')) + 1
+        if prevStr.strip() == '':
+            lenPrev -= 1
+        elif not prevStr.endswith('\n'):
+            prevStr += '\n'
+
+        seqFile = protocol.getProject().getTmpPath('{}_{}_{}.fa'.format(outStr[0], lenPrev, outStr[2]))
+        with open(seqFile, 'w') as f:
+            f.write('>{}\n{}\n'.format(outStr[0], seq))
+
+        pdbStr = ''
+        if pdbFile:
+            pdbStr = ', "pdbFile": "{}"'.format(pdbFile)
+        jsonStr = '%s) {"pdbName": "%s", "chain": "%s", "index": "%s", "seqFile": "%s"%s}\n' % \
+                  (lenPrev, outStr[0], outStr[1], outStr[2], seqFile, pdbStr)
+        form.setVar(outputParam[0], prevStr + jsonStr)
+
+AddStructSequenceWizard().addTarget(protocol=ModellerComparativeModelling,
+                                    targets=['addTemplate'],
+                                    inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']},
+                                            'tempChain', 'tempPositions'],
+                                    outputs=['templateList'])
+
+SelectChainWizardQT().addTarget(protocol=ModellerComparativeModelling,
+                                targets=['tempChain'],
+                                inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']}],
+                                outputs=['tempChain'])
+
+SelectResidueWizardQT().addTarget(protocol=ModellerComparativeModelling,
+                                  targets=['tempPositions'],
+                                  inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']},
+                                          'tempChain'],
+                                  outputs=['tempPositions'])

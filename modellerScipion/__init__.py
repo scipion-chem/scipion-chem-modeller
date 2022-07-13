@@ -24,8 +24,8 @@
 # *
 # **************************************************************************
 
+import os
 import pwem
-from os.path import join
 from .constants import *
 from pyworkflow.utils import yellowStr
 
@@ -38,7 +38,7 @@ class Plugin(pwem.Plugin):
     _homeVar = MODELLER_HOME
     _pathVars = [MODELLER_HOME]
     _supportedVersions = [V10_1]
-    _pluginHome = join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
+    _pluginHome = os.path.join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
 
     @classmethod
     def _defineVariables(cls):
@@ -73,7 +73,7 @@ class Plugin(pwem.Plugin):
     def runModeller(cls, protocol, program, args, cwd=None):
         """ Run Modeller command from a given protocol. """
         modellerArgs = ['python3', program, *args]
-        protocol.runJob(join(cls._pluginHome, 'bin/modpy.sh'), modellerArgs, cwd=cwd)
+        protocol.runJob(os.path.join(cls._pluginHome, 'bin/modpy.sh'), modellerArgs, cwd=cwd)
 
     # ---------------------------------- Utils functions  -----------------------
     @classmethod
@@ -85,5 +85,15 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def _getModellerTar(cls):
-        pluginHome = join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
+        pluginHome = os.path.join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
         return pluginHome + '/' + MODELLER + '-' + MODELLER_DEFAULT_VERSION + '.tar.gz'
+
+    @classmethod
+    def getPluginHome(cls, path=""):
+        import modellerScipion
+        fnDir = os.path.split(modellerScipion.__file__)[0]
+        return os.path.join(fnDir, path)
+
+    @classmethod
+    def getScriptsDir(cls, scriptName=''):
+        return cls.getPluginHome('scripts-10_1/%s' % scriptName)
