@@ -80,6 +80,13 @@ class ModellerComparativeModelling(EMProtocol):
                        pointerClass='Sequence', allowsNull=False,
                        label="Input sequence to predict: ",
                        help='Select the sequence whose atomic structure will be predicted')
+        form.addParam('adIni', params.BooleanParam, default=False,
+                      label="Use initial model: ",
+                      help='Use structure as initial model. It must have the same sequence as the target')
+        form.addParam('iniModel', params.PointerParam,
+                      pointerClass='AtomStruct', allowsNull=True,
+                      label="Initial model: ", condition='adIni',
+                      help='Initial model to use for the target. It must have the same sequence as the target')
         form.addParam('nModels', params.IntParam, default=1,
                       label="Number of models: ",
                       help='Number of models to generate')
@@ -105,6 +112,27 @@ class ModellerComparativeModelling(EMProtocol):
                        label='Input sequence alignment: ', condition='alignMethod == 4', allowsNull=True,
                        help="Input sequence alignment containing all the sequences specified "
                             "in this protocol formulary (both templates and target).\n")
+
+        form.addSection(label='Other parameters')
+        form.addParam('modelH', params.BooleanParam, default=False,
+                      label="Build model hydrogens: ",
+                      help='Build also model hydrogens')
+        group = form.addGroup('Scoring')
+        group.addParam('scoreMod', params.EnumParam,
+                       label='Score models: ', default=0,
+                       choices=['None', 'molpdf', 'DOPE', 'DOPE-HR',
+                                'Normalized_DOPE', 'GA341'],
+                       help="Extract a modeller score from the generated models")
+
+        group = form.addGroup('Optimization')
+        group.addParam('opt', params.EnumParam,
+                       label='Optimization quality: ', default=1,
+                       choices=['Low-Fast', 'Default', 'High-Slow'],
+                       help="Modeller allows to modify how fast the optimization will be performed. Fast optimizations"
+                            "will usually lead to lower quality.\nhttps://salilab.org/modeller/manual/node19.html")
+        group.addParam('nReps', params.IntParam, default=1,
+                       label="Number of optimization cycles: ",
+                       help='Number of optimization cycles, including the energy optimization and Molecular Dynamics')
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
@@ -133,7 +161,10 @@ class ModellerComparativeModelling(EMProtocol):
         summary = []
         scoresFile = self._getPath('scores.txt')
         if os.path.exists(scoresFile):
-            summary.append('DOPE scores for the generated models (energy-like, the lower the better)\n')
+            if self.scoreMod.get() != 5:
+                summary.append('Scores for the generated models (energy-like, the lower the better)\n')
+            else:
+                summary.append('GA341 score ranges from 0 to 1, the higher the better\n')
             with open(scoresFile) as fSc:
               summary.append(fSc.read())
         return summary
@@ -144,6 +175,8 @@ class ModellerComparativeModelling(EMProtocol):
 
     def _validate(self):
         errors = []
+        if self.adIni and not self.iniModel.get():
+            errors.append('You have not specified the initial model')
         return errors
 
     def _warnings(self):
@@ -171,6 +204,18 @@ class ModellerComparativeModelling(EMProtocol):
         args += '-n {} '.format(self.nModels.get())
         if self.getEnumText('alignMethod') == AUTOMODELLER:
             args += '--align '
+
+        if self.adIni:
+            args += '-im {} '.format(os.path.abspath(self.iniModel.get().getFileName()))
+        if self.modelH:
+            args += '--modelH '
+        if self.scoreMod.get() != 0:
+            args += '-sc {} '.format(self.getEnumText('scoreMod'))
+
+        if self.opt.get() != 1:
+            args += '-opt {} '.format(self.getEnumText('opt'))
+        args += '-nr {} '.format(self.nReps.get())
+
         return args.split()
         
     def getPDBsFile(self):
