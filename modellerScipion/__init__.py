@@ -24,8 +24,8 @@
 # *
 # **************************************************************************
 
+import os
 import pwem
-from os.path import join
 from .constants import *
 from pyworkflow.utils import yellowStr
 
@@ -39,6 +39,7 @@ class Plugin(pwem.Plugin):
     _homeVar = MODELLER_DIC['home']
     _pathVars = [MODELLER_DIC['home']]
     _supportedVersions = [MODELLER_DIC['version']]
+
 
     @classmethod
     def _defineVariables(cls):
@@ -75,6 +76,7 @@ class Plugin(pwem.Plugin):
         modellerArgs = ['python3', program, *args]
         protocol.runJob(join(cls.getVar(MODELLER_DIC['home']), 'bin/modpy.sh'), modellerArgs, cwd=cwd)
 
+
     # ---------------------------------- Utils functions  -----------------------
     @classmethod
     def _getModellerDownloadUrl(cls):
@@ -88,3 +90,13 @@ class Plugin(pwem.Plugin):
     def _getModellerTar(cls):
         pluginHome = join(pwem.Config.EM_ROOT, MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'])
         return pluginHome + '/' + MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'] + '.tar.gz'
+
+    @classmethod
+    def getPluginHome(cls, path=""):
+        import modellerScipion
+        fnDir = os.path.split(modellerScipion.__file__)[0]
+        return os.path.join(fnDir, path)
+
+    @classmethod
+    def getScriptsDir(cls, scriptName=''):
+        return cls.getPluginHome('scripts-10_1/%s' % scriptName)
