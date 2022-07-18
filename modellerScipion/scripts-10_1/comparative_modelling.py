@@ -5,6 +5,22 @@ import os, argparse
 from modeller import *
 from modeller.automodel import *  # Load the AutoModel class
 
+class MyModel(AutoModel):
+    def special_restraints(self, aln):
+        # Constrain the A and B chains to be identical (but only restrain
+        # the C-alpha atoms, to reduce the number of interatomic distances
+        # that need to be calculated):
+        for chainPair in self.symChains:
+            s1 = Selection(self.chains[chainPair[0]]).only_atom_types(self.symAtom)
+            s2 = Selection(self.chains[chainPair[1]]).only_atom_types(self.symAtom)
+            self.restraints.symmetry.append(Symmetry(s1, s2, 1.0))
+
+class MyHModel(AllHModel):
+    def addSymmetryRestrain(self, chain1, chain2, atoms='CA'):
+        s1 = Selection(self.chains[chain1]).only_atom_types(atoms)
+        s2 = Selection(self.chains[chain2]).only_atom_types(atoms)
+        self.restraints.symmetry.append(Symmetry(s1, s2, 1.0))
+
 def parsePDBCodes(pdbsFile):
     codes = []
     with open(pdbsFile) as f:
@@ -24,6 +40,12 @@ def parseScore(scoreStr):
     elif scoreStr == 'GA341':
         return assess.GA341, scoreStr + ' score'
 
+def parseSymmetries(symStr):
+    chainPairs = []
+    for cPair in symStr.split(','):
+        chainPairs.append(tuple(cPair.strip().split('-')))
+    return chainPairs
+
 def comparativeModelling():
     parser = argparse.ArgumentParser(description='Mutate residue from a given chain of a pdb file')
     parser.add_argument('-i', '--inputSeqName', type=str, help='Name of the sequence to model in the alignment')
@@ -39,6 +61,9 @@ def comparativeModelling():
     parser.add_argument('-opt', '--optimization', type=str, default='', help='Quality of the optimization')
     parser.add_argument('-nr', '--nReps', type=int, default=1, required=False,
                         help='Number of optimization repetitions')
+    parser.add_argument('-sym', '--symmetry', type=str, default='', help='Symmetry restrains by chain')
+    parser.add_argument('-symAtom', '--symmetryAtom', type=str, default='',
+                        help='Type of atoms to check the symmetry on')
 
     args = parser.parse_args()
 
@@ -62,12 +87,16 @@ def comparativeModelling():
 
     env.io.atom_files_directory = ['.', pdbDir]
 
-    function = 'AutoModel' if not modelH else 'AllHModel'
+    function = 'MyModel' if not modelH else 'MyHModel'
 
     a = eval(function)(env, alnfile=alignFile,
                       knowns=tuple(pdbCodes), sequence=targetName,
                       assess_methods=(scoreFunc),
                       inifile=iniModel)
+
+    if args.symmetry != '':
+        a.symChains = parseSymmetries(args.symmetry)
+        a.symAtom = args.symmetryAtom
 
     a.starting_model = 1
     a.ending_model = nModels

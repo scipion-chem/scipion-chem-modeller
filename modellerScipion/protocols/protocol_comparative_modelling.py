@@ -43,6 +43,7 @@ from pwchem.utils.utilsFasta import parseAlnFile, parseFasta
 from modellerScipion import Plugin
 
 AUTOMODELLER, CLUSTALO, MUSCLE, MAFFT, CUSTOM = 'AutoModeller', 'Clustal_Omega', 'Muscle', 'Mafft', 'Custom'
+chainAlph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 class ModellerComparativeModelling(EMProtocol):
     """
@@ -146,6 +147,17 @@ class ModellerComparativeModelling(EMProtocol):
         form.addParam('modelH', params.BooleanParam, default=False,
                       label="Build model hydrogens: ",
                       help='Build also model hydrogens')
+        group = form.addGroup('Symmetry', condition='multiChain')
+        group.addParam('symChains', params.StringParam,
+                       label='Symmetry chains: ', condition='multiChain',
+                       help='Specify the chains to model with symmetry. Comma separated chain pairs, in alphabetic '
+                            'order corresponding to the input sequences. \ni.e: symmetry for chains first and third;'
+                            ' second and fourth (hemoglobin), parameter must be: *A-C, B-D*')
+        group.addParam('symAtom', params.StringParam, default='CA',
+                       label='Symmetry atoms: ', condition='multiChain',
+                       help='In order to accelerate the symmetry calculation, the symmetry distances will be '
+                            'calculated over this type of atoms. Def: CA (alpha carbons)')
+
         group = form.addGroup('Scoring')
         group.addParam('scoreMod', params.EnumParam,
                        label='Score models: ', default=0,
@@ -255,6 +267,11 @@ class ModellerComparativeModelling(EMProtocol):
             args += '-opt {} '.format(self.getEnumText('opt'))
         args += '-nr {} '.format(self.nReps.get())
 
+        if self.symChains.get():
+            symChains = self.symChains.get().replace(' ', '')
+            args += '-sym {} '.format(symChains)
+            args += '-symAtom {} '.format(self.symAtom.get())
+
         return args.split()
         
     def getPDBsFile(self):
@@ -294,7 +311,7 @@ class ModellerComparativeModelling(EMProtocol):
                 if self.getTargetID() in seqDic:
                     targetSeq = seqDic[self.getTargetID()]
 
-                f.write('>P1;{}\nsequence::::::{}:::\n{}*\n'.
+                f.write('>P1;{}\nsequence:::A:::{}:::\n{}*\n'.
                         format(self.getTargetID(), self.inputSequence.get().getSeqName(), targetSeq))
 
                 for tempLine in self.templateList.get().split('\n'):
@@ -316,12 +333,12 @@ class ModellerComparativeModelling(EMProtocol):
 
           with open(alignFile, 'w') as f:
               seqStr = ''
-              for targetSeqObj in self.inputSequences.get():
-                targetSeq = self.getTargetSequence(targetSeqObj).strip()
-                seqStr += '{}/'.format(targetSeq)
+              for i, targetSeqObj in enumerate(self.inputSequences.get()):
+                  targetSeq = self.getTargetSequence(targetSeqObj).strip()
+                  seqStr += '{}/'.format(targetSeq)
 
-              f.write('>P1;{}\nsequence::::::{}:::\n{}*\n'.
-                      format(self.getTargetID(targetSeqObj), self.getTargetID(targetSeqObj), seqStr[:-1]))
+              f.write('>P1;{}\nsequence:::A::{}:{}:::\n{}*\n'.
+                      format(self.getTargetID(targetSeqObj), chainAlph[i], self.getTargetID(targetSeqObj), seqStr[:-1]))
 
               for tempLine in self.templateList.get().split('\n'):
                 if tempLine.strip():
