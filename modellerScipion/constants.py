@@ -24,15 +24,6 @@
 # *
 # **************************************************************************
 
-
-MODELLER_HOME = 'MODELLER_HOME'
-
-# Supported Versions
-V10_1 = '10.1'
-MODELLER_DEFAULT_VERSION = V10_1
-
-MODELLER = 'modeller'
-
 FILE_INSTALLER = "\\n{}\\nInsertModellerLicenseKey\\n"
 
 AA_LIST = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
