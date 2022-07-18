@@ -74,7 +74,7 @@ class Plugin(pwem.Plugin):
     def runModeller(cls, protocol, program, args, cwd=None):
         """ Run Modeller command from a given protocol. """
         modellerArgs = ['python3', program, *args]
-        protocol.runJob(join(cls.getVar(MODELLER_DIC['home']), 'bin/modpy.sh'), modellerArgs, cwd=cwd)
+        protocol.runJob(os.path.join(cls.getVar(MODELLER_DIC['home']), 'bin/modpy.sh'), modellerArgs, cwd=cwd)
 
 
     # ---------------------------------- Utils functions  -----------------------
@@ -88,7 +88,7 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def _getModellerTar(cls):
-        pluginHome = join(pwem.Config.EM_ROOT, MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'])
+        pluginHome = os.path.join(pwem.Config.EM_ROOT, MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'])
         return pluginHome + '/' + MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'] + '.tar.gz'
 
     @classmethod

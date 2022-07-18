@@ -252,7 +252,12 @@ class ModellerComparativeModelling(EMProtocol):
         args += '-af {} '.format(os.path.abspath(self.getAlignmentFile()))
         args += '-pf {} '.format(os.path.abspath(self.getPDBsFile()))
         args += '-pd {} '.format(os.path.abspath(self._getExtraPath()))
-        args += '-n {} '.format(self.nModels.get())
+        if self.opt.get() != 0:
+            args += '-n {} '.format(self.nModels.get())
+        else:
+            args += '-n 1 '
+            print('With {} optimization, the initial model is not randomized so every output model is the same.\n'
+                  'Therefore, only one model is output'.format(self.getEnumText('opt')))
         if self.getEnumText('alignMethod') == AUTOMODELLER:
             args += '--align '
 
