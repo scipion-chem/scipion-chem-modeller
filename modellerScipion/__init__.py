@@ -55,7 +55,7 @@ class Plugin(pwem.Plugin):
         installationCmd += 'tar -xf %s --strip-components 1 && ' % cls._getModellerTar()
         installationCmd += 'rm %s && ' % cls._getModellerTar()
 
-        installationCmd += 'printf "%s" > %s && ' % (FILE_INSTALLER.format(cls._pluginHome), tmpParams)
+        installationCmd += 'printf "%s" > %s && ' % (FILE_INSTALLER.format(cls.getVar(MODELLER_DIC['home'])), tmpParams)
         installationCmd += './Install < %s > /dev/null 2>&1 && ' % tmpParams
         installationCmd += 'rm %s && ' % tmpParams
 
