@@ -117,7 +117,7 @@ class ModellerComparativeModelling(EMProtocol):
                       help='Initial model to use for the target. It must have the same sequence as the target')
         form.addParam('nModels', params.IntParam, default=1,
                       label="Number of models: ",
-                      help='Number of models to generate')
+                      help='Number of models to generate. Their generation can be parallelized.')
 
         group = form.addGroup('Structure templates')
         group.addParam('templateOrigin', params.EnumParam, default=0,
