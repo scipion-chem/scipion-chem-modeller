@@ -52,6 +52,10 @@ class ModellerComparativeModelling(EMProtocol):
     """
     _label = 'Comparative modelling'
 
+    def __init__(self, **kwargs):
+        EMProtocol.__init__(self, **kwargs)
+        self.stepsExecutionMode = params.STEPS_PARALLEL
+
     # -------------------------- DEFINE param functions ----------------------
     def _addTemplateForm(self, form):
         form.addParam('inputAtomStruct', params.PointerParam,
@@ -174,6 +178,7 @@ class ModellerComparativeModelling(EMProtocol):
         group.addParam('nReps', params.IntParam, default=1,
                        label="Number of optimization cycles: ",
                        help='Number of optimization cycles, including the energy optimization and Molecular Dynamics')
+        form.addParallelSection(threads=4, mpi=1)
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
@@ -276,6 +281,9 @@ class ModellerComparativeModelling(EMProtocol):
             symChains = self.symChains.get().replace(' ', '')
             args += '-sym {} '.format(symChains)
             args += '-symAtom {} '.format(self.symAtom.get())
+
+        args += '-nj {} '.format(self.numberOfThreads.get())
+        args += '-mPath {} '.format(Plugin.getPluginHome())
 
         return args.split()
         
