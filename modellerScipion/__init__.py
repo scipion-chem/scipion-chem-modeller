@@ -24,8 +24,8 @@
 # *
 # **************************************************************************
 
+import os
 import pwem
-from os.path import join
 from .constants import *
 from pyworkflow.utils import yellowStr
 
@@ -33,18 +33,19 @@ _version_ = '0.1'
 _logo = "modeller_icon.png"
 _references = ['Webb2016']
 
+MODELLER_DIC = {'name': 'modeller', 'version': '10.1', 'home': 'MODELLER_HOME'}
 
 class Plugin(pwem.Plugin):
-    _homeVar = MODELLER_HOME
-    _pathVars = [MODELLER_HOME]
-    _supportedVersions = [V10_1]
-    _pluginHome = join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
+    _homeVar = MODELLER_DIC['home']
+    _pathVars = [MODELLER_DIC['home']]
+    _supportedVersions = [MODELLER_DIC['version']]
+
 
     @classmethod
     def _defineVariables(cls):
         """ Return and write a variable in the config file.
         """
-        cls._defineEmVar(MODELLER_HOME, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
+        cls._defineEmVar(MODELLER_DIC['home'], MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'])
 
     @classmethod
     def defineBinaries(cls, env):
@@ -54,16 +55,16 @@ class Plugin(pwem.Plugin):
         installationCmd += 'tar -xf %s --strip-components 1 && ' % cls._getModellerTar()
         installationCmd += 'rm %s && ' % cls._getModellerTar()
 
-        installationCmd += 'printf "%s" > %s && ' % (FILE_INSTALLER.format(cls._pluginHome), tmpParams)
+        installationCmd += 'printf "%s" > %s && ' % (FILE_INSTALLER.format(cls.getVar(MODELLER_DIC['home'])), tmpParams)
         installationCmd += './Install < %s > /dev/null 2>&1 && ' % tmpParams
         installationCmd += 'rm %s && ' % tmpParams
 
         # Creating validation file
-        MODELLER_INSTALLED = '%s_installed' % MODELLER
+        MODELLER_INSTALLED = '%s_installed' % MODELLER_DIC['name']
         installationCmd += 'touch %s' % MODELLER_INSTALLED  # Flag installation finished
 
-        env.addPackage(MODELLER,
-                       version=MODELLER_DEFAULT_VERSION,
+        env.addPackage(MODELLER_DIC['name'],
+                       version=MODELLER_DIC['version'],
                        tar='void.tgz',
                        commands=[(installationCmd, MODELLER_INSTALLED)],
                        neededProgs=["wget", "tar"],
@@ -73,17 +74,29 @@ class Plugin(pwem.Plugin):
     def runModeller(cls, protocol, program, args, cwd=None):
         """ Run Modeller command from a given protocol. """
         modellerArgs = ['python3', program, *args]
-        protocol.runJob(join(cls._pluginHome, 'bin/modpy.sh'), modellerArgs, cwd=cwd)
+        protocol.runJob(os.path.join(cls.getVar(MODELLER_DIC['home']), 'bin/modpy.sh'), modellerArgs, cwd=cwd)
+
 
     # ---------------------------------- Utils functions  -----------------------
     @classmethod
     def _getModellerDownloadUrl(cls):
         print(yellowStr('\nOnce Modeller is downloaded and installed, remember to write the license key '
                         'in file {}/modlib/modeller/config.py. This key can be obtained by registration in '
-                        'https://salilab.org/modeller/registration.html\n'.format(cls._pluginHome)))
+                        'https://salilab.org/modeller/registration.html\n'.
+                        format(MODELLER_DIC['home'])))
         return "\'https://salilab.org/modeller/10.1/modeller-10.1.tar.gz\'"
 
     @classmethod
     def _getModellerTar(cls):
-        pluginHome = join(pwem.Config.EM_ROOT, MODELLER + '-' + MODELLER_DEFAULT_VERSION)
-        return pluginHome + '/' + MODELLER + '-' + MODELLER_DEFAULT_VERSION + '.tar.gz'
+        pluginHome = os.path.join(pwem.Config.EM_ROOT, MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'])
+        return pluginHome + '/' + MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'] + '.tar.gz'
+
+    @classmethod
+    def getPluginHome(cls, path=""):
+        import modellerScipion
+        fnDir = os.path.split(modellerScipion.__file__)[0]
+        return os.path.join(fnDir, path)
+
+    @classmethod
+    def getScriptsDir(cls, scriptName=''):
+        return cls.getPluginHome('scripts-10_1/%s' % scriptName)

@@ -29,8 +29,8 @@ from pwem.protocols import ProtImportPdb
 from ..protocols import ModellerMutateResidue
 from ..constants import AA_LIST
 
-textMutationListExample = '{"model": 0, "chain": "A", "residues": 141} | {"residue": 1, "VAL"} | TRP\n\
-{"model": 0, "chain": "B", "residues": 146} | {"residue": 2, "HIS"} | PRO\n'
+textMutationListExample = '{"model": 0, "chain": "A", "residues": 141} | {"index": "1-1", "residues": "V"} | TRP\n\
+{"model": 0, "chain": "B", "residues": 146} | {"index": "2-2", "residues": "H"} | PRO\n'
 
 class TestModellerMutateRes(BaseTest):
     @classmethod
@@ -55,7 +55,7 @@ class TestModellerMutateRes(BaseTest):
             ModellerMutateResidue,
             inputAtomStruct=self.protImportPDB.outputPdb,
             mutChain='{"model": 0, "chain": "B", "residues": 146}',
-            mutPosition='{"residue": 2, "HIS"}', mutResidue=PRO,
+            mutPosition='{"index": "2-2", "residues": "H"}', mutResidue=PRO,
             toMutateList=textMutationListExample)
 
         self.launchProtocol(protModeller)

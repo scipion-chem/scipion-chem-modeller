@@ -24,76 +24,26 @@
 # *
 # **************************************************************************
 
-from .protocols import ModellerMutateResidue
-from pwem.wizards import GetStructureChainsWizard, pwobj, EmWizard
-import pwem.convert as emconv
-import requests, os
+import json, os, random, requests
 
-from pyworkflow.gui.tree import ListTreeProviderString
-from pyworkflow.gui import dialog
+from .protocols import ModellerMutateResidue, ModellerComparativeModelling
+from pwem.wizards import SelectChainWizard, SelectResidueWizard, EmWizard, VariableWizard
+import pwem.objects as emobj
+import pwem.convert as emconv
+
+from pwchem.wizards import SelectChainWizardQT, SelectResidueWizardQT, SelectMultiChainWizard
+
 from .constants import AA_LIST
 
-from pwchem.wizards import SelectChainWizard
+SelectChainWizardQT().addTarget(protocol=ModellerMutateResidue,
+                              targets=['mutChain'],
+                              inputs=['inputAtomStruct'],
+                              outputs=['mutChain'])
 
-class SelectChainWizardModeller(SelectChainWizard):
-  _targets = [(ModellerMutateResidue, ['mutChain'])]
-
-  def show(self, form, *params):
-    protocol = form.protocol
-    try:
-      listOfChains, listOfResidues = self.getModelsChainsStep(protocol)
-    except Exception as e:
-      print("ERROR: ", e)
-      return
-
-    self.editionListOfChains(listOfChains)
-    finalChainList = []
-    for i in self.chainList:
-      finalChainList.append(pwobj.String(i))
-    provider = ListTreeProviderString(finalChainList)
-    dlg = dialog.ListDialog(form.root, "Model chains", provider,
-                            "Select one of the chains (model, chain, "
-                            "number of chain residues)")
-    form.setVar('mutChain', dlg.values[0].get())
-
-class SelectResidueWizardModeller(SelectChainWizard):
-  _targets = [(ModellerMutateResidue, ['mutPosition'])]
-
-  def editionListOfResidues(self, modelsFirstResidue, model, chain):
-    self.residueList = []
-    for modelID, chainDic in modelsFirstResidue.items():
-      if int(model) == modelID:
-        for chainID, seq_number in chainDic.items():
-          if chain == chainID:
-            for i in seq_number:
-              self.residueList.append(
-                '{"residue": %d, "%s"}' % (i[0], str(i[1])))
-
-  def getResidues(self, form):
-    protocol = form.protocol
-    try:
-      modelsLength, modelsFirstResidue = self.getModelsChainsStep(protocol)
-    except Exception as e:
-      print("ERROR: ", e)
-      return
-    selection = protocol.mutChain.get()
-    print(selection)
-
-    model = selection.split(',')[0].split(':')[1].strip()
-    chain = selection.split(',')[1].split(':')[1].split('"')[1]
-    self.editionListOfResidues(modelsFirstResidue, model, chain)
-    finalResiduesList = []
-    for i in self.residueList:
-      finalResiduesList.append(pwobj.String(i))
-    return finalResiduesList
-
-  def show(self, form, *params):
-    finalResiduesList = self.getResidues(form)
-    provider = ListTreeProviderString(finalResiduesList)
-    dlg = dialog.ListDialog(form.root, "Chain residues", provider,
-                            "Select one residue (residue number, "
-                            "residue name)")
-    form.setVar('mutPosition', dlg.values[0].get())
+SelectResidueWizardQT().addTarget(protocol=ModellerMutateResidue,
+                                targets=['mutPosition'],
+                                inputs=['inputAtomStruct', 'mutChain'],
+                                outputs=['mutPosition'])
 
 class AddMutationWizard(EmWizard):
   _targets = [(ModellerMutateResidue, ['addMutation'])]
@@ -110,3 +60,192 @@ class ClearMutationList(EmWizard):
 
   def show(self, form, *params):
     form.setVar('toMutateList', '')
+
+
+class AddStructSequenceWizard(SelectResidueWizard):
+    _targets, _inputs, _outputs = [], {}, {}
+
+    def getModelsChainsStep(self, protocol, inputObj):
+      """ Returns (1) list with the information
+         {"model": %d, "chain": "%s", "residues": %d} (modelsLength)
+         (2) list with residues, position and chain (modelsFirstResidue)"""
+      structureHandler = emconv.AtomicStructHandler()
+      if type(inputObj) == str:
+        if os.path.exists(inputObj):
+          fileName = inputObj
+        else:
+          pdbID = inputObj
+          url = "https://www.rcsb.org/structure/"
+          URL = url + ("%s" % pdbID)
+          try:
+            response = requests.get(URL)
+          except:
+            raise Exception("Cannot connect to PDB server")
+          if (response.status_code >= 400) and (response.status_code < 500):
+            raise Exception("%s is a wrong PDB ID" % pdbID)
+          fileName = structureHandler.readFromPDBDatabase(os.path.basename(pdbID), dir="/tmp/")
+
+      elif str(type(inputObj).__name__) == 'SchrodingerAtomStruct':
+        fileName = os.path.abspath(inputObj.convert2PDB())
+      else:
+        fileName = os.path.abspath(inputObj.getFileName())
+
+      structureHandler.read(fileName)
+      structureHandler.getStructure()
+      return structureHandler.getModelsChains()
+
+    def getResidues(self, form, inputObj, modelChain):
+      protocol = form.protocol
+
+      if type(inputObj) == str:
+          # Select the residues if the input structure parameter is a str (PDB id or PDB file)
+          structureHandler = emconv.AtomicStructHandler()
+          if os.path.exists(inputObj):
+              fileName = inputObj
+          else:
+              pdbID = inputObj
+              url = "https://www.rcsb.org/structure/"
+              URL = url + ("%s" % pdbID)
+              try:
+                response = requests.get(URL)
+              except:
+                raise Exception("Cannot connect to PDB server")
+              if (response.status_code >= 400) and (response.status_code < 500):
+                raise Exception("%s is a wrong PDB ID" % pdbID)
+
+              fileName = structureHandler.readFromPDBDatabase(os.path.basename(pdbID), dir="/tmp/")
+
+          structureHandler.read(fileName)
+          structureHandler.getStructure()
+          modelsLength, modelsFirstResidue = structureHandler.getModelsChains()
+
+          model, chain = modelChain.split('-')
+          residueList = self.editionListOfResidues(modelsFirstResidue, model, chain)
+          finalResiduesList = []
+          for i in residueList:
+              finalResiduesList.append(emobj.String(i))
+
+      elif issubclass(type(inputObj), emobj.AtomStruct):
+          try:
+            modelsLength, modelsFirstResidue = self.getModelsChainsStep(protocol, inputObj)
+          except Exception as e:
+            print("ERROR: ", e)
+            return
+          model, chain = modelChain.split('-')
+
+          residueList = self.editionListOfResidues(modelsFirstResidue, model, chain)
+          finalResiduesList = []
+          for i in residueList:
+            finalResiduesList.append(emobj.String(i))
+      return finalResiduesList
+
+    def show(self, form, *params):
+        protocol = form.protocol
+        pseudoProtId = random.randint(0, 1000)  #we cannot obtain prot Id because it might not be launched yet
+        inputParams, outputParam = self.getInputOutput(form)
+
+        # StructName
+        inputTemplate = getattr(protocol, inputParams[0]).get()
+        pdbFile = ''
+        if issubclass(type(inputTemplate), str):
+            outName = inputTemplate.lower()
+        else:
+            pdbFile = inputTemplate.getFileName()
+            outName = os.path.splitext(os.path.basename(pdbFile))[0].lower()
+
+        if not protocol.multiChain:
+            # Chain
+            chainJson = getattr(protocol, inputParams[1]).get()
+            modelId, chainId = json.loads(chainJson)['model'], json.loads(chainJson)['chain']
+
+            # Positions
+            posJson = getattr(protocol, inputParams[2]).get()
+            if posJson:
+                posIdxs = json.loads(posJson)['index']
+                seq = json.loads(posJson)['residues']
+            else:
+                posIdxs = 'FIRST-LAST'
+                finalResiduesList = self.getResidues(form, inputTemplate, '{}-{}'.format(modelId, chainId))
+                idxs = [json.loads(finalResiduesList[0].get())['index'],
+                        json.loads(finalResiduesList[-1].get())['index']]
+                seq = self.getSequence(finalResiduesList, idxs)
+
+            seqFile = protocol.getProject().getTmpPath('{}_{}_{}_{}.fa'.format(outName, pseudoProtId, chainId, posIdxs))
+            with open(seqFile, 'w') as f:
+                f.write('>{}\n{}\n'.format(outName, seq))
+
+            prevStr = getattr(protocol, outputParam[0]).get()
+            lenPrev = len(prevStr.strip().split('\n')) + 1
+            if prevStr.strip() == '':
+              lenPrev -= 1
+            elif not prevStr.endswith('\n'):
+              prevStr += '\n'
+
+            pdbStr = ''
+            if pdbFile:
+                pdbStr = ', "pdbFile": "{}"'.format(pdbFile)
+            jsonStr = '%s) {"pdbName": "%s", "chain": "%s", "index": "%s", "seqFile": "%s"%s}\n' % \
+                      (lenPrev, outName, chainId, posIdxs, seqFile, pdbStr)
+            form.setVar(outputParam[0], prevStr + jsonStr)
+        else:
+            # Chain
+            chainsList = json.loads(getattr(protocol, inputParams[1]).get())['model-chain']
+            for i, chainStr in enumerate(chainsList.split(',')):
+                chain = chainStr.split('-')[1]
+
+                # Positions
+                finalResiduesList = self.getResidues(form, inputTemplate, chainStr)
+                posStr = getattr(protocol, inputParams[2]).get()
+                if posStr:
+                    posIdxs = posStr.split(',').strip()
+                else:
+                    posIdxs = [json.loads(finalResiduesList[0].get())['index'],
+                               json.loads(finalResiduesList[-1].get())['index']]
+
+                seq = self.getSequence(finalResiduesList, posIdxs)
+
+                posIdxStr = '-'.join(list(map(str, posIdxs)))
+                seqFile = protocol.getProject().getTmpPath('{}_{}_{}_{}.fa'.format(outName, pseudoProtId, chain,
+                                                                                   posIdxStr))
+                with open(seqFile, 'w') as f:
+                    f.write('>{}_{}\n{}\n'.format(outName, chain, seq))
+
+            seqFileTemplate = seqFile = protocol.getProject().getTmpPath('{}_{}_*_*.fa'.format(outName, pseudoProtId))
+
+            prevStr = getattr(protocol, outputParam[0]).get()
+            lenPrev = len(prevStr.strip().split('\n')) + 1
+            if prevStr.strip() == '':
+              lenPrev -= 1
+            elif not prevStr.endswith('\n'):
+              prevStr += '\n'
+
+            pdbStr = ''
+            if pdbFile:
+              pdbStr = ', "pdbFile": "{}"'.format(pdbFile)
+            jsonStr = '%s) {"pdbName": "%s", "chains": "%s", "seqFiles": "%s"%s}\n' % \
+                      (lenPrev, outName, chainsList, seqFile, pdbStr)
+            form.setVar(outputParam[0], prevStr + jsonStr)
+
+AddStructSequenceWizard().addTarget(protocol=ModellerComparativeModelling,
+                                    targets=['addTemplate'],
+                                    inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']},
+                                            {'multiChain': ['tempChain', 'tempMChain']},
+                                            {'multiChain': ['tempPositions', 'tempMPositions']}],
+                                    outputs=['templateList'])
+
+SelectChainWizardQT().addTarget(protocol=ModellerComparativeModelling,
+                                targets=['tempChain'],
+                                inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']}],
+                                outputs=['tempChain'])
+
+SelectResidueWizardQT().addTarget(protocol=ModellerComparativeModelling,
+                                  targets=['tempPositions'],
+                                  inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']},
+                                          'tempChain'],
+                                  outputs=['tempPositions'])
+
+SelectMultiChainWizard().addTarget(protocol=ModellerComparativeModelling,
+                                   targets=['tempMChain'],
+                                   inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']}],
+                                   outputs=['tempMChain'])
+
