@@ -44,6 +44,7 @@ from modellerScipion import Plugin
 
 AUTOMODELLER, CLUSTALO, MUSCLE, MAFFT, CUSTOM = 'AutoModeller', 'Clustal_Omega', 'Muscle', 'Mafft', 'Custom'
 chainAlph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+scoreChoices = ['molpdf', 'DOPE', 'DOPE-HR', 'Normalized_DOPE', 'GA341']
 
 class ModellerComparativeModelling(EMProtocol):
     """
@@ -135,14 +136,18 @@ class ModellerComparativeModelling(EMProtocol):
                        help="How to generate the sequences alignment:\n 1) Modeller automatic alignment\n"
                             "2,3,4) Scipion-chem included programs with default params\n"
                             "5) Custom alignment as SetOfSequences aligned")
-        
+
+        group.addParam('fromFile', params.BooleanParam, default=True,
+                      label="Alignment from file: ", condition='alignMethod==4 and not multiChain',
+                      help='Whether to choose custom alignment from file or scipion alignment object')
         group.addParam('inputAlign', params.PointerParam, pointerClass='SetOfSequencesChem', allowsNull=True,
-                       label='Input sequence alignment: ', condition='alignMethod==4 and not multiChain',
+                       label='Input sequence alignment: ',
+                       condition='alignMethod==4 and not fromFile and not multiChain',
                        help="Input sequence alignment containing all the sequences specified "
                             "in this protocol formulary (both templates and target).\n")
 
         group.addParam('inputAlignFile', params.PathParam,
-                       label='Input alignment file: ', condition='alignMethod==4 and multiChain', allowsNull=True,
+                       label='Input alignment file: ', condition='alignMethod==4 and fromFile', allowsNull=True,
                        help="Input sequence alignment containing all the sequences and chains in PIR format as"
                             " expected from modeller. https://salilab.org/modeller/manual/node29.html")
 
@@ -163,11 +168,9 @@ class ModellerComparativeModelling(EMProtocol):
                             'calculated over this type of atoms. Def: CA (alpha carbons)')
 
         group = form.addGroup('Scoring')
-        group.addParam('scoreMod', params.EnumParam,
-                       label='Score models: ', default=0,
-                       choices=['None', 'molpdf', 'DOPE', 'DOPE-HR',
-                                'Normalized_DOPE', 'GA341'],
-                       help="Extract a modeller score from the generated models")
+        for scoreName in scoreChoices:
+            group.addParam(f'score{scoreName}', params.BooleanParam, default=False,
+                          label=f"Report {scoreName} score: ")
 
         group = form.addGroup('Optimization')
         group.addParam('opt', params.EnumParam,
@@ -209,10 +212,8 @@ class ModellerComparativeModelling(EMProtocol):
         summary = []
         scoresFile = self._getPath('scores.txt')
         if os.path.exists(scoresFile):
-            if self.scoreMod.get() != 5:
-                summary.append('Scores for the generated models (energy-like, the lower the better)\n')
-            else:
-                summary.append('GA341 score ranges from 0 to 1, the higher the better\n')
+            summary.append('GA341 score ranges from 0 to 1, the higher the better\n')
+            summary.append('Rest of scores for the generated models are energy-like, the lower the better)\n')
             with open(scoresFile) as fSc:
               summary.append(fSc.read())
         return summary
@@ -270,8 +271,13 @@ class ModellerComparativeModelling(EMProtocol):
             args += '-im {} '.format(os.path.abspath(self.iniModel.get().getFileName()))
         if self.modelH:
             args += '--modelH '
-        if self.scoreMod.get() != 0:
-            args += '-sc {} '.format(self.getEnumText('scoreMod'))
+
+        doScore = []
+        for scoreName in scoreChoices:
+            if getattr(self, f'score{scoreName}'):
+                doScore.append(scoreName)
+        if len(doScore) > 0:
+            args += '-sc {} '.format(','.join(doScore))
 
         if self.opt.get() != 1:
             args += '-opt {} '.format(self.getEnumText('opt'))
@@ -314,7 +320,11 @@ class ModellerComparativeModelling(EMProtocol):
         alignFile = self.getAlignmentFile()
         if not self.multiChain:
             if self.getEnumText('alignMethod') == CUSTOM:
-                seqDic = self.parseInputAlignment()
+                if not self.fromFile.get():
+                    seqDic = self.parseInputAlignment()
+                else:
+                  shutil.copy(self.inputAlignFile.get(), alignFile)
+                  return alignFile
 
             elif self.getEnumText('alignMethod') in [CLUSTALO, MUSCLE, MAFFT]:
                 seqDic = self.makeScipionAlignment()
