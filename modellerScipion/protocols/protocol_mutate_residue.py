@@ -229,10 +229,14 @@ class ModellerMutateResidue(EMProtocol):
 
     def _validate(self):
         errors = []
-        for i, line in enumerate(self.toMutateList.get().strip().split('\n')):
-            residue = line.split('|')[1].strip()
-            idxs = json.loads(residue)['index']
-            if idxs.split('-')[0] != idxs.split('-')[1]:
-                errors.append('Error in mutation nº {}: '
-                              'Modeller protocol designed to produce one point substitutions.'.format(i+1))
+        if not self.toMutateList.get().strip():
+            errors.append('You have not added any mutation to the list. Do so using the "add mutation" '
+                  'wizard once you have defined it')
+        else:
+            for i, line in enumerate(self.toMutateList.get().strip().split('\n')):
+                residue = line.split('|')[1].strip()
+                idxs = json.loads(residue)['index']
+                if idxs.split('-')[0] != idxs.split('-')[1]:
+                    errors.append('Error in mutation nº {}: '
+                                  'Modeller protocol designed to produce one point substitutions.'.format(i+1))
         return errors
