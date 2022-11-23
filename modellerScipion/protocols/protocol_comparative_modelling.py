@@ -44,9 +44,9 @@ from modellerScipion import Plugin
 
 AUTOMODELLER, CLUSTALO, MUSCLE, MAFFT, CUSTOM = 'AutoModeller', 'Clustal_Omega', 'Muscle', 'Mafft', 'Custom'
 chainAlph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-scoreChoices = ['molpdf', 'DOPE', 'DOPE-HR', 'Normalized_DOPE', 'GA341']
+scoreChoices = ['DOPE', 'DOPE-HR', 'Normalized_DOPE', 'GA341']
 
-class ModellerComparativeModelling(EMProtocol):
+class ProtModellerComparativeModelling(EMProtocol):
     """
     Performs a comparative modelling prediction using modeller and a set of similar structures
     https://salilab.org/modeller/manual/node16.html
@@ -168,8 +168,9 @@ class ModellerComparativeModelling(EMProtocol):
                             'calculated over this type of atoms. Def: CA (alpha carbons)')
 
         group = form.addGroup('Scoring')
-        for scoreName in scoreChoices:
-            group.addParam(f'score{scoreName}', params.BooleanParam, default=False,
+        for i, scoreName in enumerate(scoreChoices):
+            defa = True if i == 0 else False
+            group.addParam(f'score{scoreName}', params.BooleanParam, default=defa,
                           label=f"Report {scoreName} score: ")
 
         group = form.addGroup('Optimization')
@@ -310,7 +311,6 @@ class ModellerComparativeModelling(EMProtocol):
                     shutil.copy(tempJson['pdbFile'], self._getExtraPath(os.path.basename(tempJson['pdbFile'])))
                 else:
                     aSH = emconv.AtomicStructHandler()
-                    print("Retrieving atomic structure with ID = %s" % pdbCode)
                     aSH.readFromPDBDatabase(pdbCode, type='mmCif', dir=self._getExtraPath())
 
                 f.write(pdbCode + '\n')
@@ -318,16 +318,22 @@ class ModellerComparativeModelling(EMProtocol):
 
     def buildAlignFile(self):
         alignFile = self.getAlignmentFile()
+        programName = self.getEnumText('alignMethod')
+
         if not self.multiChain:
-            if self.getEnumText('alignMethod') == CUSTOM:
+            if programName == CUSTOM:
                 if not self.fromFile.get():
                     seqDic = self.parseInputAlignment()
                 else:
                   shutil.copy(self.inputAlignFile.get(), alignFile)
                   return alignFile
 
-            elif self.getEnumText('alignMethod') in [CLUSTALO, MUSCLE, MAFFT]:
-                seqDic = self.makeScipionAlignment()
+            elif programName in [CLUSTALO, MUSCLE, MAFFT]:
+                seqDic = self.makeScipionAlignment(programName)
+
+            else:
+                # todo: automatic alignment, meanwhile use mafft
+                seqDic = self.makeScipionAlignment(MAFFT)
 
             with open(alignFile, 'w') as f:
                 targetSeq = self.getTargetSequence()
@@ -348,11 +354,16 @@ class ModellerComparativeModelling(EMProtocol):
                               format(pdbCode, pdbCode, idxs[0], chain, idxs[1], chain, pdbCode, tempSeq))
 
         else:
-          if self.getEnumText('alignMethod') == CUSTOM:
+          if programName == CUSTOM:
               shutil.copy(self.inputAlignFile.get(), alignFile)
               return alignFile
-          elif self.getEnumText('alignMethod') in [CLUSTALO, MUSCLE, MAFFT]:
-              seqDic = self.makeScipionAlignment()
+
+          elif programName in [CLUSTALO, MUSCLE, MAFFT]:
+              seqDic = self.makeScipionAlignment(programName)
+
+          else:
+              # todo: automatic alignment, meanwhile use mafft
+              seqDic = self.makeScipionAlignment(MAFFT)
 
           with open(alignFile, 'w') as f:
               seqStr = ''
@@ -381,7 +392,7 @@ class ModellerComparativeModelling(EMProtocol):
                       if protSeqCode in seqDic:
                           tempSeq = seqDic[protSeqCode]
                       else:
-                          tempSeq = ''  # todo: automatic alignment
+                          tempSeq = ''
                       chainsSeqs += '{}/'.format(tempSeq)
 
                       first = False
@@ -402,7 +413,7 @@ class ModellerComparativeModelling(EMProtocol):
             seqDic[seq.getId()] = seq.getSequence()
         return seqDic
 
-    def makeScipionAlignment(self):
+    def makeScipionAlignment(self, programName):
         if not self.multiChain:
             inpSeqsFile = self._getTmpPath('inputSeqs.fa')
             with open(inpSeqsFile, 'w') as f:
@@ -416,7 +427,7 @@ class ModellerComparativeModelling(EMProtocol):
                       with open(seqFile) as fIn:
                         f.write(fIn.read().strip() + '\n')
 
-            seqDic = self.performAlignment(inpSeqsFile)
+            seqDic = self.performAlignment(inpSeqsFile, programName)
             return seqDic
 
         else:
@@ -436,15 +447,14 @@ class ModellerComparativeModelling(EMProtocol):
                           with open(seqFile) as fIn:
                             f.write(fIn.read().strip() + '\n')
 
-                iSeqDic = self.performAlignment(inpSeqsFile, idx=str(i))
+                iSeqDic = self.performAlignment(inpSeqsFile, programName, idx=str(i))
                 seqDic.update(iSeqDic)
 
             return seqDic
 
 
-    def performAlignment(self, inpFile, idx=''):
+    def performAlignment(self, inpFile, programName, idx=''):
         alignFile = self.getScipionAlignFile(idx)
-        programName = self.getEnumText('alignMethod')
         if programName == CLUSTALO:
           cline = 'clustalo -i {} --auto -o {} --outfmt=clu'.format(inpFile, alignFile)
         elif programName == MUSCLE:

@@ -5,4 +5,4 @@
 # **************************************************************************
 
 from .protocol_mutate_residue import ModellerMutateResidue
-from .protocol_comparative_modelling import ModellerComparativeModelling
+from .protocol_comparative_modelling import ProtModellerComparativeModelling

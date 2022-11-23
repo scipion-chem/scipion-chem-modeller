@@ -26,11 +26,12 @@
 
 import json, os, random, requests
 
-from .protocols import ModellerMutateResidue, ModellerComparativeModelling
+from .protocols import ModellerMutateResidue, ProtModellerComparativeModelling
 from pwem.wizards import SelectChainWizard, SelectResidueWizard, EmWizard, VariableWizard
 import pwem.objects as emobj
 import pwem.convert as emconv
 
+from pwchem.utils import downloadPDB
 from pwchem.wizards import SelectChainWizardQT, SelectResidueWizardQT, SelectMultiChainWizard
 
 from .constants import AA_LIST
@@ -74,16 +75,7 @@ class AddStructSequenceWizard(SelectResidueWizard):
         if os.path.exists(inputObj):
           fileName = inputObj
         else:
-          pdbID = inputObj
-          url = "https://www.rcsb.org/structure/"
-          URL = url + ("%s" % pdbID)
-          try:
-            response = requests.get(URL)
-          except:
-            raise Exception("Cannot connect to PDB server")
-          if (response.status_code >= 400) and (response.status_code < 500):
-            raise Exception("%s is a wrong PDB ID" % pdbID)
-          fileName = structureHandler.readFromPDBDatabase(os.path.basename(pdbID), dir="/tmp/")
+          fileName = downloadPDB(inputObj)
 
       elif str(type(inputObj).__name__) == 'SchrodingerAtomStruct':
         fileName = os.path.abspath(inputObj.convert2PDB())
@@ -103,17 +95,7 @@ class AddStructSequenceWizard(SelectResidueWizard):
           if os.path.exists(inputObj):
               fileName = inputObj
           else:
-              pdbID = inputObj
-              url = "https://www.rcsb.org/structure/"
-              URL = url + ("%s" % pdbID)
-              try:
-                response = requests.get(URL)
-              except:
-                raise Exception("Cannot connect to PDB server")
-              if (response.status_code >= 400) and (response.status_code < 500):
-                raise Exception("%s is a wrong PDB ID" % pdbID)
-
-              fileName = structureHandler.readFromPDBDatabase(os.path.basename(pdbID), dir="/tmp/")
+              fileName = downloadPDB(inputObj)
 
           structureHandler.read(fileName)
           structureHandler.getStructure()
@@ -226,25 +208,25 @@ class AddStructSequenceWizard(SelectResidueWizard):
                       (lenPrev, outName, chainsList, seqFile, pdbStr)
             form.setVar(outputParam[0], prevStr + jsonStr)
 
-AddStructSequenceWizard().addTarget(protocol=ModellerComparativeModelling,
+AddStructSequenceWizard().addTarget(protocol=ProtModellerComparativeModelling,
                                     targets=['addTemplate'],
                                     inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']},
                                             {'multiChain': ['tempChain', 'tempMChain']},
                                             {'multiChain': ['tempPositions', 'tempMPositions']}],
                                     outputs=['templateList'])
 
-SelectChainWizardQT().addTarget(protocol=ModellerComparativeModelling,
+SelectChainWizardQT().addTarget(protocol=ProtModellerComparativeModelling,
                                 targets=['tempChain'],
                                 inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']}],
                                 outputs=['tempChain'])
 
-SelectResidueWizardQT().addTarget(protocol=ModellerComparativeModelling,
+SelectResidueWizardQT().addTarget(protocol=ProtModellerComparativeModelling,
                                   targets=['tempPositions'],
                                   inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']},
                                           'tempChain'],
                                   outputs=['tempPositions'])
 
-SelectMultiChainWizard().addTarget(protocol=ModellerComparativeModelling,
+SelectMultiChainWizard().addTarget(protocol=ProtModellerComparativeModelling,
                                    targets=['tempMChain'],
                                    inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']}],
                                    outputs=['tempMChain'])

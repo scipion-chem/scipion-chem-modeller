@@ -26,8 +26,6 @@ def parsePDBCodes(pdbsFile):
 def parseScore(scoreStr):
     scores = scoreStr.split(',')
     ase, scoNames = [], []
-    if 'molpdf' in scores:
-        ase.append(None), scoNames.append('molpdf')
     if 'DOPE' in scores:
         ase.append(assess.DOPE), scoNames.append('DOPE score')
     if 'DOPE-HR' in scores:
@@ -96,9 +94,10 @@ def comparativeModelling():
 
     function = AutoModel if not modelH else AllHModel
 
+    scF = tuple(scoreFuncs) if scoreFuncs else None
     a = function(env, alnfile=alignFile,
                  knowns=tuple(pdbCodes), sequence=targetName,
-                 assess_methods=tuple(scoreFuncs),
+                 assess_methods=scF,
                  inifile=iniModel)
 
     ncpus, modellerPath = args.nCPUs, args.modellerPath
