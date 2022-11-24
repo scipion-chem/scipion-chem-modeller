@@ -49,7 +49,7 @@ scoreChoices = ['DOPE', 'DOPE-HR', 'Normalized_DOPE', 'GA341']
 class ProtModellerComparativeModelling(EMProtocol):
     """
     Performs a comparative modelling prediction using modeller and a set of similar structures
-    https://salilab.org/modeller/manual/node16.html
+    https://salilab.org/modeller/manual/node15.html
     """
     _label = 'Comparative modelling'
 
@@ -80,7 +80,7 @@ class ProtModellerComparativeModelling(EMProtocol):
                       label='Template multi chain: ', condition='multiChain',
                       help='Specify the protein chains to use as template (Use CTRL from multiple selection). '
                            'If None, modeller will try to guess it')
-        form.addParam('tempMPositions', params.StringParam, expertLevel=params.LEVEL_ADVANCED,
+        form.addParam('tempMPositions', params.StringParam,
                       label='Template multi positions: ', condition='multiChain',
                       help='Specify the positions of each of the chains to use in the alignment.\n'
                            'In the same order as in "Template multi chain: ", write the first and last index '
@@ -94,40 +94,46 @@ class ProtModellerComparativeModelling(EMProtocol):
     def _defineParams(self, form):
         """ """
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('multiChain', params.BooleanParam, default=False,
-                      label="Multiple chains: ", expertLevel=params.LEVEL_ADVANCED,
+        group = form.addGroup('Input')
+        group.addParam('multiChain', params.BooleanParam, default=False,
+                      label="Multiple chains: ",
                       help='Build a comparative modelling using several chains. \nThis way, the input must be the '
                            'target sequences of each of the chains selected from the templates '
                            '(and in the same order!).\nYou can build this set of sequences using the '
                            '"define set of sequences" protocol')
-        form.addParam('inputSequence', params.PointerParam,
+        group.addParam('inputSequence', params.PointerParam,
                        pointerClass='Sequence', allowsNull=True,
                        label="Input sequence to predict: ", condition='not multiChain',
                        help='Select the sequence whose atomic structure will be predicted')
-        form.addParam('inputSequences', params.PointerParam,
+        group.addParam('inputSequences', params.PointerParam,
                       pointerClass='SetOfSequences', allowsNull=True,
                       label="Input sequences to predict: ", condition='multiChain',
                       help='Select the sequences whose atomic structure will be predicted')
 
-        form.addParam('adIni', params.BooleanParam, default=False,
+        group.addParam('adIni', params.BooleanParam, default=False,
                       label="Use initial model: ",
                       help='Use structure as initial model. It must have the same sequence as the target')
-        form.addParam('iniModel', params.PointerParam,
+        group.addParam('iniModel', params.PointerParam,
                       pointerClass='AtomStruct', allowsNull=True,
                       label="Initial model: ", condition='adIni',
                       help='Initial model to use for the target. It must have the same sequence as the target')
-        form.addParam('nModels', params.IntParam, default=1,
+
+        group = form.addGroup('Output')
+        group.addParam('nModels', params.IntParam, default=1,
                       label="Number of models: ",
                       help='Number of models to generate. Their generation can be parallelized.')
+        group.addParam('modelH', params.BooleanParam, default=False,
+                       label="Build model hydrogens: ",
+                       help='Build also model hydrogens')
 
         group = form.addGroup('Structure templates')
         group.addParam('templateOrigin', params.EnumParam, default=0,
-                       label='Templates origin', choices=['AtomStruct', 'PDB code'],
+                       label='Templates origin: ', choices=['AtomStruct', 'PDB code'],
                        help='Structure template origin')
         self._addTemplateForm(group)
         group.addParam('templateList', params.TextParam, width=100,
-                      default='', label='List of templates: ',
-                      help='The list of templates to use for the comparative modelling.')
+                       default='', label='List of templates: ',
+                       help='The list of templates to use for the comparative modelling.')
 
         group = form.addGroup('Alignment')
         group.addParam('alignMethod', params.EnumParam,
@@ -153,9 +159,6 @@ class ProtModellerComparativeModelling(EMProtocol):
 
 
         form.addSection(label='Other parameters')
-        form.addParam('modelH', params.BooleanParam, default=False,
-                      label="Build model hydrogens: ",
-                      help='Build also model hydrogens')
         group = form.addGroup('Symmetry', condition='multiChain')
         group.addParam('symChains', params.StringParam,
                        label='Symmetry chains: ', condition='multiChain',
