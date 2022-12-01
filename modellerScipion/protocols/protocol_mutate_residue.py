@@ -145,7 +145,24 @@ class ModellerMutateResidue(EMProtocol):
                        help='Dynamic MODELLER non-bonded spline restraints are calculated. These include the loop '
                             'modeling potential and DOPE: https://salilab.org/modeller/9.9/manual/node128.html')
 
+    # --------------------------- STEPS functions ------------------------------
+    def _insertAllSteps(self):
+        # Insert processing steps
+        chains, respos, restypes = self.parseMutations()
+        for mutIdx in range(len(restypes)):
+            mutation = chains[mutIdx], respos[mutIdx], restypes[mutIdx]
+            self._insertFunctionStep('modellerStep', mutIdx, mutation)
+        self._insertFunctionStep('createOutputStep')
 
+    def modellerStep(self, i, mutation):
+        Plugin.runModeller(self, self._getScriptsFolder('mutate_residue.py'),
+                           args=self._getModellerArgs(i, mutation), cwd=self._getExtraPath())
+
+    def createOutputStep(self):
+        mutatedAS = AtomStruct(self.outputFile)
+        self._defineOutputs(mutatedAtomStruct=mutatedAS)
+
+    # --------------------------- UTILS functions -----------------------------
 
     def _parseChain(self, chainLine):
       return json.loads(chainLine)['chain']
@@ -160,21 +177,24 @@ class ModellerMutateResidue(EMProtocol):
       chains, respos, restypes = [], [], []
       text = self.toMutateList.get()
       for line in text.split('\n'):
-        if len(line.split('|'))==3:
+        if len(line.split('|')) == 3:
           chain, resp, restyp = line.split('|')
           chains.append(self._parseChain(chain.strip()))
           respos.append(self._parsePosition(resp.strip()))
           restypes.append(self._parseType(restyp.strip()))
       return chains, respos, restypes
 
-    def _getModellerArgs(self):
-      self.outputFolder, self.ASFile = os.path.abspath(self._getPath()), self._getFileInputStruct()
-      modelbase, ext = os.path.splitext(self.ASFile.split('/')[-1])
-      self.outputFile = '{}/{}_mutant.pdb'.format(self.outputFolder, modelbase)
+    def _getModellerArgs(self, i, mutation):
+      ASFile = self._getFileInputStruct()
+      modelbase, ext = os.path.splitext(ASFile.split('/')[-1])
+      self.outputFile = os.path.abspath(self._getPath('{}_mutant_{}.pdb'.format(modelbase, i+1)))
 
-      chains, respos, restypes = self.parseMutations()
+      chain, respos, restype = mutation
 
-      args = ['-i', self.ASFile, '-p', respos, '-r', restypes, '-c', chains, '-s', self.seed.get(),
+      if i > 0:
+          ASFile = os.path.abspath(self._getPath('{}_mutant_{}.pdb'.format(modelbase, i)))
+
+      args = ['-i', ASFile, '-p', respos, '-r', restype, '-c', chain, '-s', self.seed.get(),
               '-o', self.outputFile]
 
       args += ['-contactShell', self.contactShell.get(), '-updateDynamic', self.updateDynamic.get()]
@@ -190,32 +210,14 @@ class ModellerMutateResidue(EMProtocol):
 
       return args
 
-    def _getScriptsFolder(self):
-      thisFile = os.path.realpath(__file__)
-      path = []
-      for step in thisFile.split('/'):
-        path.append(step)
-        if step == 'scipion-chem-modeller':
-          break
-      return '/'+os.path.join(*path)+'/modellerScipion/scripts-10_1/'
+    def _getScriptsFolder(self, path=''):
+      from modellerScipion import Plugin as modPlugin
+      return modPlugin.getPluginHome('scripts-10_1/' + path)
 
     def _getFileInputStruct(self):
       structFile = self.inputAtomStruct.get().getFileName()
       return os.path.abspath(structFile)
 
-    # --------------------------- STEPS functions ------------------------------
-    def _insertAllSteps(self):
-        # Insert processing steps
-        self._insertFunctionStep('modellerStep')
-        self._insertFunctionStep('createOutputStep')
-
-    def modellerStep(self):
-        Plugin.runModeller(self, self._getScriptsFolder()+'mutate_residue.py',
-                          args=self._getModellerArgs(), cwd=self._getExtraPath())
-
-    def createOutputStep(self):
-        mutatedAS = AtomStruct(self.outputFile)
-        self._defineOutputs(mutatedAtomStruct=mutatedAS)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

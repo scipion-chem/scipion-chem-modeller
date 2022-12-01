@@ -62,9 +62,9 @@ def make_restraints(mdl1, aln):
 def mutateResidue():
     parser = argparse.ArgumentParser(description='Mutate residue from a given chain of a pdb file')
     parser.add_argument('-i', '--inputFilename', type=str, help='Input pdb file')
-    parser.add_argument('-p', '--positions', type=str, help='Residue position to mutate')
-    parser.add_argument('-r', '--newResidues', type=str, help='Residue to add in the substitution')
-    parser.add_argument('-c', '--chains', type=str, help='Chain of the protein to mutate')
+    parser.add_argument('-p', '--position', type=str, help='Residue position to mutate')
+    parser.add_argument('-r', '--newResidue', type=str, help='Residue to add in the substitution')
+    parser.add_argument('-c', '--chain', type=str, help='Chain of the protein to mutate')
     parser.add_argument('-s', '--seed', type=int, default=-49837, required=False, help='Random seed')
     parser.add_argument('-o', '--outputFile', type=str, help='Output file')
 
@@ -86,8 +86,9 @@ def mutateResidue():
     parser.add_argument('--dynamicModeller', default=False, action='store_true')
 
     args = parser.parse_args()
-    modelname, chains, respos, restypes = args.inputFilename, eval(args.chains), \
-                                          eval(args.positions), eval(args.newResidues)
+    modelname = args.inputFilename
+
+    chain, resp, restyp = args.chain, args.position, args.newResidue
     seed, outputFile = args.seed, args.outputFile
     log.verbose()
 
@@ -128,87 +129,78 @@ def mutateResidue():
     ali = Alignment(env)
     ali.append_model(mdl1, atom_files=modelname, align_codes=modelname)
 
-    for mutIdx in range(len(respos)):
-        chain, resp, restyp = chains[mutIdx], respos[mutIdx], restypes[mutIdx]
-        #set up the mutate residue selection segment
-        s = Selection(mdl1.chains[chain].residues[resp])
+    #set up the mutate residue selection segment
+    s = Selection(mdl1.chains[chain].residues[resp])
 
-        #perform the mutate residue operation
-        s.mutate(residue_type=restyp)
-        #get two copies of the sequence.  A modeller trick to get things set up
-        ali.append_model(mdl1, align_codes=modelname)
-        # Generate molecular topology for mutant
-        mdl1.clear_topology()
-        mdl1.generate_topology(ali[-1])
+    #perform the mutate residue operation
+    s.mutate(residue_type=restyp)
+    #get two copies of the sequence.  A modeller trick to get things set up
+    ali.append_model(mdl1, align_codes=modelname)
+    # Generate molecular topology for mutant
+    mdl1.clear_topology()
+    mdl1.generate_topology(ali[-1])
 
-        # Transfer all the coordinates you can from the template native structure
-        # to the mutant (this works even if the order of atoms in the native PDB
-        # file is not standard):
-        #here we are generating the model by reading the template coordinates
-        mdl1.transfer_xyz(ali)
-        # Build the remaining unknown coordinates
-        mdl1.build(initialize_xyz=False, build_method='INTERNAL_COORDINATES')
+    # Transfer all the coordinates you can from the template native structure
+    # to the mutant (this works even if the order of atoms in the native PDB
+    # file is not standard):
+    #here we are generating the model by reading the template coordinates
+    mdl1.transfer_xyz(ali)
+    # Build the remaining unknown coordinates
+    mdl1.build(initialize_xyz=False, build_method='INTERNAL_COORDINATES')
 
-        #yes model2 is the same file as model1.  It's a modeller trick.
-        mdl2 = Model(env, file=modelname)
-        #required to do a transfer_res_numb
-        #ali.append_model(mdl2, atom_files=modelname, align_codes=modelname)
-        #transfers from "model 2" to "model 1"
-        mdl1.res_num_from(mdl2,ali)
+    #yes model2 is the same file as model1.  It's a modeller trick.
+    mdl2 = Model(env, file=modelname)
+    #required to do a transfer_res_numb
+    #ali.append_model(mdl2, atom_files=modelname, align_codes=modelname)
+    #transfers from "model 2" to "model 1"
+    mdl1.res_num_from(mdl2,ali)
 
-        #It is usually necessary to write the mutated sequence out and read it in
-        #before proceeding, because not all sequence related information about MODEL
-        #is changed by this command (e.g., internal coordinates, charges, and atom
-        #types and radii are not updated).
+    #It is usually necessary to write the mutated sequence out and read it in
+    #before proceeding, because not all sequence related information about MODEL
+    #is changed by this command (e.g., internal coordinates, charges, and atom
+    #types and radii are not updated).
 
-        mdl1.write(file=modelname+restyp+resp+'.tmp')
-        mdl1.read(file=modelname+restyp+resp+'.tmp')
+    tmpFile = '{}{}{}.tmp'.format(modelname, restyp, resp)
+    mdl1.write(file=tmpFile)
+    mdl1.read(file=tmpFile)
 
-        #set up restraints before computing energy
-        #we do this a second time because the model has been written out and read in,
-        #clearing the previously set restraints
-        make_restraints(mdl1, ali)
+    #set up restraints before computing energy
+    #we do this a second time because the model has been written out and read in,
+    #clearing the previously set restraints
+    make_restraints(mdl1, ali)
 
-        #a non-bonded pair has to have at least as many selected atoms
-        mdl1.env.edat.nonbonded_sel_atoms=1
+    #a non-bonded pair has to have at least as many selected atoms
+    mdl1.env.edat.nonbonded_sel_atoms=1
 
-        sched = autosched.loop.make_for_model(mdl1)
+    sched = autosched.loop.make_for_model(mdl1)
 
-        #only optimize the selected residue (in first pass, just atoms in selected
-        #residue, in second pass, include nonbonded neighboring atoms)
-        #set up the mutate residue selection segment
-        s = Selection(mdl1.chains[chain].residues[resp])
+    #only optimize the selected residue (in first pass, just atoms in selected
+    #residue, in second pass, include nonbonded neighboring atoms)
+    #set up the mutate residue selection segment
+    s = Selection(mdl1.chains[chain].residues[resp])
 
-        mdl1.restraints.unpick_all()
-        mdl1.restraints.pick(s)
+    mdl1.restraints.unpick_all()
+    mdl1.restraints.pick(s)
 
-        s.energy()
+    s.energy()
 
-        s.randomize_xyz(deviation=4.0)
+    s.randomize_xyz(deviation=4.0)
 
-        mdl1.env.edat.nonbonded_sel_atoms=2
-        optimize(s, sched)
+    mdl1.env.edat.nonbonded_sel_atoms=2
+    optimize(s, sched)
 
-        #feels environment (energy computed on pairs that have at least one member
-        #in the selected)
-        mdl1.env.edat.nonbonded_sel_atoms=1
-        optimize(s, sched)
+    #feels environment (energy computed on pairs that have at least one member
+    #in the selected)
+    mdl1.env.edat.nonbonded_sel_atoms=1
+    optimize(s, sched)
 
-        s.energy()
+    s.energy()
 
-        # delete the temporary file
-        os.remove(modelname + restyp + resp + '.tmp')
+    # delete the temporary file
+    os.remove(tmpFile)
 
     #give a proper name
-    tmpFile = outputFile.replace('.pdb', '_tmp.pdb')
-    mdl1.write(file=tmpFile)
-    fTmp = open(tmpFile, 'r').read()
-    with open(outputFile, 'w') as f:
-        f.write('#Mutations generated with modeller: \n')
-        for i in range(len(respos)):
-            f.write('#Chain: {} | Position: {} | New residue: {}\n'.format(chains[i], respos[i], restypes[i]))
-        f.write(fTmp)
-    os.remove(tmpFile)
+    mdl1.write(file=outputFile)
 
 if __name__ == '__main__':
     mutateResidue()
