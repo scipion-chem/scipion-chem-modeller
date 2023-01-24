@@ -1,6 +1,6 @@
 # **************************************************************************
 # *
-# * Authors:    Alberto M. Parra Pérez (amparraperez@gmail.com)
+# * Authors:     Daniel Del Hoyo Gomez (ddelhoyo@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -25,5 +25,7 @@
 # **************************************************************************
 
 
-from pyworkflow.tests import *
+from modellerScipion.tests.test_comparative_modelling import *
+from modellerScipion.tests.test_mutate_residue import *
+
 
