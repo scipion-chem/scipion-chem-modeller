@@ -35,6 +35,6 @@ setup(
     install_requires=[requirements],
     entry_points={'pyworkflow.plugin': 'modellerScipion = modellerScipion'},
     package_data={  # Optional
-       'modellerScipion': ['modeller_icon.png', 'protocols.conf'],
+       'modellerScipion': ['modeller_logo.png', 'protocols.conf'],
     }
 )

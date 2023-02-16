@@ -30,7 +30,7 @@ from .constants import *
 from pyworkflow.utils import yellowStr
 
 _version_ = '0.1'
-_logo = "modeller_icon.png"
+_logo = "modeller_logo.png"
 _references = ['Webb2016']
 
 MODELLER_DIC = {'name': 'modeller', 'version': '10.1', 'home': 'MODELLER_HOME'}

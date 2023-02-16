@@ -67,14 +67,13 @@ class ModellerMutateResidue(EMProtocol):
     def _defineParams(self, form):
         """ """
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('inputAtomStruct', params.PointerParam,
-                       pointerClass='AtomStruct', allowsNull=False,
-                       label="Input atom structure",
-                       help='Select the atom structure to be fitted in the volume')
-        group = form.addGroup('Add mutation')
-        self._addMutationForm(group)
-        group = form.addGroup('List of mutations')
+        group = form.addGroup('Input')
+        group.addParam('inputAtomStruct', params.PointerParam,
+                        pointerClass='AtomStruct', allowsNull=False, label="Input atom structure",
+                        help='Select the atom structure to be fitted in the volume')
 
+        group = form.addGroup('Define mutation')
+        self._addMutationForm(group)
         group.addParam('toMutateList', params.TextParam, width=70,
                       default='', label='List of mutations',
                       help='List of chain | position | residue to mutate. '
@@ -87,22 +86,22 @@ class ModellerMutateResidue(EMProtocol):
                       default=-49837, help='Random seed for modeller')
 
         form.addSection(label='Energy objective functions')
-        group = form.addGroup('Main parameters')
+        group = form.addGroup('Distance parameters')
         group.addParam('contactShell', params.FloatParam, default=4.0,
-                       label='Nonbond distance cutoff', important=True,
+                       label='Nonbond distance cutoff',
                        help='This defines the maximal distance between atoms that flags a non-bonded atom pair. '
                             'Such pairs are stored in the list of non-bonded atom pairs. Only those non-bonded pairs '
                             'that are sufficiently close to each other will result in an actual non-bonded restraint. '
                             'https://salilab.org/modeller/9.9/manual/node122.html')
         group.addParam('updateDynamic', params.FloatParam, default=0.39,
-                       label='Nonbond recalculation threshold', important=True,
+                       label='Nonbond recalculation threshold',
                        help='This sets the cumulative maximal atomic shift during optimization that triggers '
                             'recalculation of the list of atom-atom non-bonded pairs. It should be set in combination '
                             'with contact_shell. https://salilab.org/modeller/9.9/manual/node123.html')
 
         group = form.addGroup('Energy restrains')
         group.addParam('dynamicSphere', params.BooleanParam, default=True,
-                       label='Calculate soft-sphere overlap restraints', important=True,
+                       label='Calculate soft-sphere overlap restraints',
                        help='The dynamic soft-sphere overlap restraints are calculated. Note that they are only '
                             'calculated if the scaled standard deviation of the soft-sphere overlap restraints is '
                             'greater than zero. The soft-sphere potential is simply a lower bound harmonic restraint '
@@ -114,7 +113,7 @@ class ModellerMutateResidue(EMProtocol):
                             "with standard deviation sphereStdv, dropping to zero at the sum of "
                             "the two atoms' van der Waals radii: https://salilab.org/modeller/9.9/manual/node124.html")
         group.addParam('lennardJones', params.BooleanParam, default=False,
-                      label='Calculate Lennard-Jones restraints', important=True,
+                      label='Calculate Lennard-Jones restraints',
                       help='Dynamic Lennard-Jones restraints are calculated, using equation: '
                            'https://salilab.org/modeller/9.9/manual/node459.html#eq:lennard')
         group.addParam('LJSwitch1', params.FloatParam, default=6.5, condition='lennardJones==True',
@@ -126,7 +125,7 @@ class ModellerMutateResidue(EMProtocol):
                        help="This is the parameter f_2 to the Lennard-Jones switching function, "
                             "which smoothes the potential down to zero")
         group.addParam('coulomb', params.BooleanParam, default=False,
-                       label='Calculate Coulomb restraints', important=True,
+                       label='Calculate Coulomb restraints',
                        help='Dynamic Coulomb (electrostatic) restraints are calculated '
                             'https://salilab.org/modeller/9.9/manual/node459.html#eq:coulomb')
         group.addParam('CouSwitch1', params.FloatParam, default=6.5, condition='coulomb==True',
@@ -142,11 +141,28 @@ class ModellerMutateResidue(EMProtocol):
                        help="This sets the relative dielectric epsilon_r , used in the calculation"
                             "of the Coulomb energy")
         group.addParam('dynamicModeller', params.BooleanParam, default=False,
-                       label='Calculate non-bonded spline restraints', important=True,
+                       label='Calculate non-bonded spline restraints',
                        help='Dynamic MODELLER non-bonded spline restraints are calculated. These include the loop '
                             'modeling potential and DOPE: https://salilab.org/modeller/9.9/manual/node128.html')
 
+    # --------------------------- STEPS functions ------------------------------
+    def _insertAllSteps(self):
+        # Insert processing steps
+        chains, respos, restypes = self.parseMutations()
+        for mutIdx in range(len(restypes)):
+            mutation = chains[mutIdx], respos[mutIdx], restypes[mutIdx]
+            self._insertFunctionStep('modellerStep', mutIdx, mutation)
+        self._insertFunctionStep('createOutputStep')
 
+    def modellerStep(self, i, mutation):
+        Plugin.runModeller(self, self._getScriptsFolder('mutate_residue.py'),
+                           args=self._getModellerArgs(i, mutation), cwd=self._getExtraPath())
+
+    def createOutputStep(self):
+        mutatedAS = AtomStruct(self.outputFile)
+        self._defineOutputs(mutatedAtomStruct=mutatedAS)
+
+    # --------------------------- UTILS functions -----------------------------
 
     def _parseChain(self, chainLine):
       return json.loads(chainLine)['chain']
@@ -161,21 +177,24 @@ class ModellerMutateResidue(EMProtocol):
       chains, respos, restypes = [], [], []
       text = self.toMutateList.get()
       for line in text.split('\n'):
-        if len(line.split('|'))==3:
+        if len(line.split('|')) == 3:
           chain, resp, restyp = line.split('|')
           chains.append(self._parseChain(chain.strip()))
           respos.append(self._parsePosition(resp.strip()))
           restypes.append(self._parseType(restyp.strip()))
       return chains, respos, restypes
 
-    def _getModellerArgs(self):
-      self.outputFolder, self.ASFile = os.path.abspath(self._getPath()), self._getFileInputStruct()
-      modelbase, ext = os.path.splitext(self.ASFile.split('/')[-1])
-      self.outputFile = '{}/{}_mutant.pdb'.format(self.outputFolder, modelbase)
+    def _getModellerArgs(self, i, mutation):
+      ASFile = self._getFileInputStruct()
+      modelbase, ext = os.path.splitext(ASFile.split('/')[-1])
+      self.outputFile = os.path.abspath(self._getPath('{}_mutant_{}.pdb'.format(modelbase, i+1)))
 
-      chains, respos, restypes = self.parseMutations()
+      chain, respos, restype = mutation
 
-      args = ['-i', self.ASFile, '-p', respos, '-r', restypes, '-c', chains, '-s', self.seed.get(),
+      if i > 0:
+          ASFile = os.path.abspath(self._getPath('{}_mutant_{}.pdb'.format(modelbase, i)))
+
+      args = ['-i', ASFile, '-p', respos, '-r', restype, '-c', chain, '-s', self.seed.get(),
               '-o', self.outputFile]
 
       args += ['-contactShell', self.contactShell.get(), '-updateDynamic', self.updateDynamic.get()]
@@ -191,32 +210,14 @@ class ModellerMutateResidue(EMProtocol):
 
       return args
 
-    def _getScriptsFolder(self):
-      thisFile = os.path.realpath(__file__)
-      path = []
-      for step in thisFile.split('/'):
-        path.append(step)
-        if step == 'scipion-chem-modeller':
-          break
-      return '/'+os.path.join(*path)+'/modellerScipion/scripts-10_1/'
+    def _getScriptsFolder(self, path=''):
+      from modellerScipion import Plugin as modPlugin
+      return modPlugin.getPluginHome('scripts-10_1/' + path)
 
     def _getFileInputStruct(self):
       structFile = self.inputAtomStruct.get().getFileName()
       return os.path.abspath(structFile)
 
-    # --------------------------- STEPS functions ------------------------------
-    def _insertAllSteps(self):
-        # Insert processing steps
-        self._insertFunctionStep('modellerStep')
-        self._insertFunctionStep('createOutputStep')
-
-    def modellerStep(self):
-        Plugin.runModeller(self, self._getScriptsFolder()+'mutate_residue.py',
-                          args=self._getModellerArgs(), cwd=self._getExtraPath())
-
-    def createOutputStep(self):
-        mutatedAS = AtomStruct(self.outputFile)
-        self._defineOutputs(mutatedAtomStruct=mutatedAS)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -229,10 +230,14 @@ class ModellerMutateResidue(EMProtocol):
 
     def _validate(self):
         errors = []
-        for i, line in enumerate(self.toMutateList.get().strip().split('\n')):
-            residue = line.split('|')[1].strip()
-            idxs = json.loads(residue)['index']
-            if idxs.split('-')[0] != idxs.split('-')[1]:
-                errors.append('Error in mutation nº {}: '
-                              'Modeller protocol designed to produce one point substitutions.'.format(i+1))
+        if not self.toMutateList.get().strip():
+            errors.append('You have not added any mutation to the list. Do so using the "add mutation" '
+                  'wizard once you have defined it')
+        else:
+            for i, line in enumerate(self.toMutateList.get().strip().split('\n')):
+                residue = line.split('|')[1].strip()
+                idxs = json.loads(residue)['index']
+                if idxs.split('-')[0] != idxs.split('-')[1]:
+                    errors.append('Error in mutation nº {}: '
+                                  'Modeller protocol designed to produce one point substitutions.'.format(i+1))
         return errors

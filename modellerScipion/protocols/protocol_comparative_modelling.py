@@ -44,11 +44,12 @@ from modellerScipion import Plugin
 
 AUTOMODELLER, CLUSTALO, MUSCLE, MAFFT, CUSTOM = 'AutoModeller', 'Clustal_Omega', 'Muscle', 'Mafft', 'Custom'
 chainAlph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+scoreChoices = ['DOPE', 'DOPE-HR', 'Normalized_DOPE', 'GA341']
 
-class ModellerComparativeModelling(EMProtocol):
+class ProtModellerComparativeModelling(EMProtocol):
     """
     Performs a comparative modelling prediction using modeller and a set of similar structures
-    https://salilab.org/modeller/manual/node16.html
+    https://salilab.org/modeller/manual/node15.html
     """
     _label = 'Comparative modelling'
 
@@ -79,7 +80,7 @@ class ModellerComparativeModelling(EMProtocol):
                       label='Template multi chain: ', condition='multiChain',
                       help='Specify the protein chains to use as template (Use CTRL from multiple selection). '
                            'If None, modeller will try to guess it')
-        form.addParam('tempMPositions', params.StringParam, expertLevel=params.LEVEL_ADVANCED,
+        form.addParam('tempMPositions', params.StringParam,
                       label='Template multi positions: ', condition='multiChain',
                       help='Specify the positions of each of the chains to use in the alignment.\n'
                            'In the same order as in "Template multi chain: ", write the first and last index '
@@ -93,40 +94,46 @@ class ModellerComparativeModelling(EMProtocol):
     def _defineParams(self, form):
         """ """
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('multiChain', params.BooleanParam, default=False,
-                      label="Multiple chains: ", expertLevel=params.LEVEL_ADVANCED,
+        group = form.addGroup('Input')
+        group.addParam('multiChain', params.BooleanParam, default=False,
+                      label="Multiple chains: ",
                       help='Build a comparative modelling using several chains. \nThis way, the input must be the '
                            'target sequences of each of the chains selected from the templates '
                            '(and in the same order!).\nYou can build this set of sequences using the '
                            '"define set of sequences" protocol')
-        form.addParam('inputSequence', params.PointerParam,
+        group.addParam('inputSequence', params.PointerParam,
                        pointerClass='Sequence', allowsNull=True,
                        label="Input sequence to predict: ", condition='not multiChain',
                        help='Select the sequence whose atomic structure will be predicted')
-        form.addParam('inputSequences', params.PointerParam,
+        group.addParam('inputSequences', params.PointerParam,
                       pointerClass='SetOfSequences', allowsNull=True,
                       label="Input sequences to predict: ", condition='multiChain',
                       help='Select the sequences whose atomic structure will be predicted')
 
-        form.addParam('adIni', params.BooleanParam, default=False,
+        group.addParam('adIni', params.BooleanParam, default=False,
                       label="Use initial model: ",
                       help='Use structure as initial model. It must have the same sequence as the target')
-        form.addParam('iniModel', params.PointerParam,
+        group.addParam('iniModel', params.PointerParam,
                       pointerClass='AtomStruct', allowsNull=True,
                       label="Initial model: ", condition='adIni',
                       help='Initial model to use for the target. It must have the same sequence as the target')
-        form.addParam('nModels', params.IntParam, default=1,
+
+        group = form.addGroup('Output')
+        group.addParam('nModels', params.IntParam, default=1,
                       label="Number of models: ",
                       help='Number of models to generate. Their generation can be parallelized.')
+        group.addParam('modelH', params.BooleanParam, default=False,
+                       label="Build model hydrogens: ",
+                       help='Build also model hydrogens')
 
         group = form.addGroup('Structure templates')
         group.addParam('templateOrigin', params.EnumParam, default=0,
-                       label='Templates origin', choices=['AtomStruct', 'PDB code'],
+                       label='Templates origin: ', choices=['AtomStruct', 'PDB code'],
                        help='Structure template origin')
         self._addTemplateForm(group)
         group.addParam('templateList', params.TextParam, width=100,
-                      default='', label='List of templates: ',
-                      help='The list of templates to use for the comparative modelling.')
+                       default='', label='List of templates: ',
+                       help='The list of templates to use for the comparative modelling.')
 
         group = form.addGroup('Alignment')
         group.addParam('alignMethod', params.EnumParam,
@@ -135,22 +142,23 @@ class ModellerComparativeModelling(EMProtocol):
                        help="How to generate the sequences alignment:\n 1) Modeller automatic alignment\n"
                             "2,3,4) Scipion-chem included programs with default params\n"
                             "5) Custom alignment as SetOfSequences aligned")
-        
+
+        group.addParam('fromFile', params.BooleanParam, default=True,
+                      label="Alignment from file: ", condition='alignMethod==4 and not multiChain',
+                      help='Whether to choose custom alignment from file or scipion alignment object')
         group.addParam('inputAlign', params.PointerParam, pointerClass='SetOfSequencesChem', allowsNull=True,
-                       label='Input sequence alignment: ', condition='alignMethod==4 and not multiChain',
+                       label='Input sequence alignment: ',
+                       condition='alignMethod==4 and not fromFile and not multiChain',
                        help="Input sequence alignment containing all the sequences specified "
                             "in this protocol formulary (both templates and target).\n")
 
         group.addParam('inputAlignFile', params.PathParam,
-                       label='Input alignment file: ', condition='alignMethod==4 and multiChain', allowsNull=True,
+                       label='Input alignment file: ', condition='alignMethod==4 and fromFile', allowsNull=True,
                        help="Input sequence alignment containing all the sequences and chains in PIR format as"
                             " expected from modeller. https://salilab.org/modeller/manual/node29.html")
 
 
         form.addSection(label='Other parameters')
-        form.addParam('modelH', params.BooleanParam, default=False,
-                      label="Build model hydrogens: ",
-                      help='Build also model hydrogens')
         group = form.addGroup('Symmetry', condition='multiChain')
         group.addParam('symChains', params.StringParam,
                        label='Symmetry chains: ', condition='multiChain',
@@ -163,11 +171,10 @@ class ModellerComparativeModelling(EMProtocol):
                             'calculated over this type of atoms. Def: CA (alpha carbons)')
 
         group = form.addGroup('Scoring')
-        group.addParam('scoreMod', params.EnumParam,
-                       label='Score models: ', default=0,
-                       choices=['None', 'molpdf', 'DOPE', 'DOPE-HR',
-                                'Normalized_DOPE', 'GA341'],
-                       help="Extract a modeller score from the generated models")
+        for i, scoreName in enumerate(scoreChoices):
+            defa = True if i == 0 else False
+            group.addParam(f'score{scoreName}', params.BooleanParam, default=defa,
+                          label=f"Report {scoreName} score: ")
 
         group = form.addGroup('Optimization')
         group.addParam('opt', params.EnumParam,
@@ -209,10 +216,8 @@ class ModellerComparativeModelling(EMProtocol):
         summary = []
         scoresFile = self._getPath('scores.txt')
         if os.path.exists(scoresFile):
-            if self.scoreMod.get() != 5:
-                summary.append('Scores for the generated models (energy-like, the lower the better)\n')
-            else:
-                summary.append('GA341 score ranges from 0 to 1, the higher the better\n')
+            summary.append('GA341 score ranges from 0 to 1, the higher the better\n')
+            summary.append('Rest of scores for the generated models are energy-like, the lower the better)\n')
             with open(scoresFile) as fSc:
               summary.append(fSc.read())
         return summary
@@ -270,8 +275,13 @@ class ModellerComparativeModelling(EMProtocol):
             args += '-im {} '.format(os.path.abspath(self.iniModel.get().getFileName()))
         if self.modelH:
             args += '--modelH '
-        if self.scoreMod.get() != 0:
-            args += '-sc {} '.format(self.getEnumText('scoreMod'))
+
+        doScore = []
+        for scoreName in scoreChoices:
+            if getattr(self, f'score{scoreName}'):
+                doScore.append(scoreName)
+        if len(doScore) > 0:
+            args += '-sc {} '.format(','.join(doScore))
 
         if self.opt.get() != 1:
             args += '-opt {} '.format(self.getEnumText('opt'))
@@ -304,7 +314,6 @@ class ModellerComparativeModelling(EMProtocol):
                     shutil.copy(tempJson['pdbFile'], self._getExtraPath(os.path.basename(tempJson['pdbFile'])))
                 else:
                     aSH = emconv.AtomicStructHandler()
-                    print("Retrieving atomic structure with ID = %s" % pdbCode)
                     aSH.readFromPDBDatabase(pdbCode, type='mmCif', dir=self._getExtraPath())
 
                 f.write(pdbCode + '\n')
@@ -312,12 +321,22 @@ class ModellerComparativeModelling(EMProtocol):
 
     def buildAlignFile(self):
         alignFile = self.getAlignmentFile()
-        if not self.multiChain:
-            if self.getEnumText('alignMethod') == CUSTOM:
-                seqDic = self.parseInputAlignment()
+        programName = self.getEnumText('alignMethod')
 
-            elif self.getEnumText('alignMethod') in [CLUSTALO, MUSCLE, MAFFT]:
-                seqDic = self.makeScipionAlignment()
+        if not self.multiChain:
+            if programName == CUSTOM:
+                if not self.fromFile.get():
+                    seqDic = self.parseInputAlignment()
+                else:
+                  shutil.copy(self.inputAlignFile.get(), alignFile)
+                  return alignFile
+
+            elif programName in [CLUSTALO, MUSCLE, MAFFT]:
+                seqDic = self.makeScipionAlignment(programName)
+
+            else:
+                # todo: automatic alignment, meanwhile use mafft
+                seqDic = self.makeScipionAlignment(MAFFT)
 
             with open(alignFile, 'w') as f:
                 targetSeq = self.getTargetSequence()
@@ -338,11 +357,16 @@ class ModellerComparativeModelling(EMProtocol):
                               format(pdbCode, pdbCode, idxs[0], chain, idxs[1], chain, pdbCode, tempSeq))
 
         else:
-          if self.getEnumText('alignMethod') == CUSTOM:
+          if programName == CUSTOM:
               shutil.copy(self.inputAlignFile.get(), alignFile)
               return alignFile
-          elif self.getEnumText('alignMethod') in [CLUSTALO, MUSCLE, MAFFT]:
-              seqDic = self.makeScipionAlignment()
+
+          elif programName in [CLUSTALO, MUSCLE, MAFFT]:
+              seqDic = self.makeScipionAlignment(programName)
+
+          else:
+              # todo: automatic alignment, meanwhile use mafft
+              seqDic = self.makeScipionAlignment(MAFFT)
 
           with open(alignFile, 'w') as f:
               seqStr = ''
@@ -371,7 +395,7 @@ class ModellerComparativeModelling(EMProtocol):
                       if protSeqCode in seqDic:
                           tempSeq = seqDic[protSeqCode]
                       else:
-                          tempSeq = ''  # todo: automatic alignment
+                          tempSeq = ''
                       chainsSeqs += '{}/'.format(tempSeq)
 
                       first = False
@@ -392,7 +416,7 @@ class ModellerComparativeModelling(EMProtocol):
             seqDic[seq.getId()] = seq.getSequence()
         return seqDic
 
-    def makeScipionAlignment(self):
+    def makeScipionAlignment(self, programName):
         if not self.multiChain:
             inpSeqsFile = self._getTmpPath('inputSeqs.fa')
             with open(inpSeqsFile, 'w') as f:
@@ -406,7 +430,7 @@ class ModellerComparativeModelling(EMProtocol):
                       with open(seqFile) as fIn:
                         f.write(fIn.read().strip() + '\n')
 
-            seqDic = self.performAlignment(inpSeqsFile)
+            seqDic = self.performAlignment(inpSeqsFile, programName)
             return seqDic
 
         else:
@@ -426,15 +450,14 @@ class ModellerComparativeModelling(EMProtocol):
                           with open(seqFile) as fIn:
                             f.write(fIn.read().strip() + '\n')
 
-                iSeqDic = self.performAlignment(inpSeqsFile, idx=str(i))
+                iSeqDic = self.performAlignment(inpSeqsFile, programName, idx=str(i))
                 seqDic.update(iSeqDic)
 
             return seqDic
 
 
-    def performAlignment(self, inpFile, idx=''):
+    def performAlignment(self, inpFile, programName, idx=''):
         alignFile = self.getScipionAlignFile(idx)
-        programName = self.getEnumText('alignMethod')
         if programName == CLUSTALO:
           cline = 'clustalo -i {} --auto -o {} --outfmt=clu'.format(inpFile, alignFile)
         elif programName == MUSCLE:

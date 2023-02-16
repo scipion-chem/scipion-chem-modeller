@@ -24,16 +24,18 @@ def parsePDBCodes(pdbsFile):
     return codes
 
 def parseScore(scoreStr):
-    if scoreStr == 'molpdf':
-        return None, scoreStr
-    elif scoreStr == 'DOPE':
-        return assess.DOPE, scoreStr + ' score'
-    elif scoreStr == 'DOPE-HR':
-        return assess.DOPEHR, scoreStr + ' score'
-    elif scoreStr == 'Normalized_DOPE':
-        return assess.normalized_dope, scoreStr.replace('_', ' ') + ' score'
-    elif scoreStr == 'GA341':
-        return assess.GA341, scoreStr + ' score'
+    scores = scoreStr.split(',')
+    ase, scoNames = [], []
+    if 'DOPE' in scores:
+        ase.append(assess.DOPE), scoNames.append('DOPE score')
+    if 'DOPE-HR' in scores:
+        ase.append(assess.DOPEHR), scoNames.append('DOPE-HR score')
+    if 'Normalized_DOPE' in scores:
+        ase.append(assess.normalized_dope), scoNames.append('Normalized DOPE score')
+    if 'GA341' in scores:
+        ase.append(assess.GA341), scoNames.append('GA341 score')
+
+    return ase, scoNames
 
 def parseSymmetries(symStr):
     chainPairs = []
@@ -77,9 +79,9 @@ def comparativeModelling():
     score, optim = args.score, args.optimization
 
     if score != '':
-        scoreFunc, scoreKey = parseScore(score)
+        scoreFuncs, scoreKeys = parseScore(score)
     else:
-        scoreFunc, scoreKey = None, ''
+        scoreFuncs, scoreKeys = None, ''
 
     iniModel = args.iniModel
     if iniModel == '':
@@ -92,9 +94,10 @@ def comparativeModelling():
 
     function = AutoModel if not modelH else AllHModel
 
+    scF = tuple(scoreFuncs) if scoreFuncs else None
     a = function(env, alnfile=alignFile,
                  knowns=tuple(pdbCodes), sequence=targetName,
-                 assess_methods=(scoreFunc),
+                 assess_methods=scF,
                  inifile=iniModel)
 
     ncpus, modellerPath = args.nCPUs, args.modellerPath
@@ -129,13 +132,16 @@ def comparativeModelling():
     ok_models = [x for x in a.outputs if x['failure'] is None]
 
     # Rank the models by DOPE score
-    if scoreKey:
+    if len(scoreKeys) > 0:
         scoreStr = ''
         for m in ok_models:
             outId = int(os.path.splitext(m['name'])[0][-2:])
-            if type(m[scoreKey]) == list:
-                m[scoreKey] = m[scoreKey][0]
-            scoreStr += "Model: %s (%s %.3f)\n" % ('outputAtomStruct_{}'.format(outId), scoreKey, m[scoreKey])
+            scoreStr += "Model: 'outputAtomStruct_{}".format(outId)
+            for scoreKey in scoreKeys:
+                if type(m[scoreKey]) == list:
+                    m[scoreKey] = m[scoreKey][0]
+                scoreStr += "(%s %.3f)" % (scoreKey, m[scoreKey])
+            scoreStr += '\n'
 
         with open('scores.txt', 'w') as f:
             f.write(scoreStr)
