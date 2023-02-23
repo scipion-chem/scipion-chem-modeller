@@ -41,7 +41,6 @@ MODELLER_DIC = {'name': 'modeller', 'version': '10.3', 'home': 'MODELLER_HOME'}
 class Plugin(pwem.Plugin):
     _supportedVersions = [MODELLER_DIC['version']]
 
-
     @classmethod
     def _defineVariables(cls):
         """ Return and write a variable in the config file.
@@ -64,9 +63,10 @@ class Plugin(pwem.Plugin):
                        default=True)
 
         print(yellowStr('\nOnce Modeller is downloaded and installed, remember to write the license key '
-                        'in file envs/modeller-env/lib/modeller-{}/modlib/modeller/config.py in the conda '
+                        'in file {}/envs/modeller-env/lib/modeller-{}/modlib/modeller/config.py in the conda '
                         'environment. This key can be obtained by registration in '
-                        'https://salilab.org/modeller/registration.html\n'.format(MODELLER_DIC['version'])))
+                        'https://salilab.org/modeller/registration.html\n'.
+                        format(cls.getCondaEnvPath(), MODELLER_DIC['version'])))
 
     @classmethod
     def runScript(cls, protocol, scriptName, args, env, cwd=None, popen=False):
@@ -104,3 +104,12 @@ class Plugin(pwem.Plugin):
             neededProgs.append('conda')
 
         return neededProgs
+
+    @classmethod
+    def getCondaEnvPath(cls):
+        condaAct = cls.getCondaActivationCmd()
+        try:
+            condaPath = condaAct.split('$(')[1].split('/bin')[0]
+        except:
+            condaPath = 'YOUR_CONDA_PATH'
+        return condaPath
