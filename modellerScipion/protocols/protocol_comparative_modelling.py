@@ -159,7 +159,7 @@ class ProtModellerComparativeModelling(EMProtocol):
 
 
         form.addSection(label='Other parameters')
-        group = form.addGroup('Renaming', condition='multiChain', expertLevel=params.LEVEL_ADVANCED)
+        group = form.addGroup('Renaming', expertLevel=params.LEVEL_ADVANCED)
         group.addParam('renumberResidues', params.StringParam, default='', label="Renumber residues: ",
                        help='Renumber residues so each chain first residue index is the one specified.'
                             'You can either enter one value and every chain first index will be that or specify '
