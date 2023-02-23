@@ -16,6 +16,12 @@ def special_restraints(self, aln):
             s2 = Selection(self.chains[chainPair[1]]).only_atom_types(self.symAtom)
             self.restraints.symmetry.append(Symmetry(s1, s2, 1.0))
 
+def special_patches(self, aln):
+    if hasattr(self, 'renam'):
+        # Rename both chains and renumber the residues in each
+        self.rename_segments(segment_ids=self.renam,
+                             renumber_residues=self.renum)
+
 def parsePDBCodes(pdbsFile):
     codes = []
     with open(pdbsFile) as f:
@@ -45,7 +51,9 @@ def parseSymmetries(symStr):
 
 def comparativeModelling():
     setattr(AutoModel, 'special_restraints', special_restraints)
+    setattr(AutoModel, 'special_patches', special_patches)
     setattr(AllHModel, 'special_restraints', special_restraints)
+    setattr(AllHModel, 'special_patches', special_patches)
 
     parser = argparse.ArgumentParser(description='Mutate residue from a given chain of a pdb file')
     parser.add_argument('-i', '--inputSeqName', type=str, help='Name of the sequence to model in the alignment')
@@ -61,6 +69,8 @@ def comparativeModelling():
     parser.add_argument('-opt', '--optimization', type=str, default='', help='Quality of the optimization')
     parser.add_argument('-nr', '--nReps', type=int, default=1, required=False,
                         help='Number of optimization repetitions')
+    parser.add_argument('-renum', type=str, default='', help='Renumber each chain first residue index')
+    parser.add_argument('-renam', type=str, default='', help='Rename each chain name')
     parser.add_argument('-sym', '--symmetry', type=str, default='', help='Symmetry restrains by chain')
     parser.add_argument('-symAtom', '--symmetryAtom', type=str, default='',
                         help='Type of atoms to check the symmetry on')
@@ -106,6 +116,11 @@ def comparativeModelling():
         for i in range(ncpus):
             j.append(LocalWorker())
         a.use_parallel_job(j)
+
+    if args.renam:
+        nums = list(map(int, args.renum.split(','))) if args.renum else []
+        names = args.renam.split(',')
+        a.renam, a.renum = names, nums
 
     if args.symmetry != '':
         a.symChains = parseSymmetries(args.symmetry)

@@ -32,7 +32,7 @@ alignable known structures
 
 """
 
-import os, json, shutil, glob
+import os, json, shutil, glob, string
 from pyworkflow.protocol import params
 from pyworkflow.utils import Message
 from pwem.protocols import EMProtocol
@@ -159,8 +159,18 @@ class ProtModellerComparativeModelling(EMProtocol):
 
 
         form.addSection(label='Other parameters')
+        group = form.addGroup('Renaming', condition='multiChain', expertLevel=params.LEVEL_ADVANCED)
+        group.addParam('renumberResidues', params.StringParam, default='', label="Renumber residues: ",
+                       help='Renumber residues so each chain first residue index is the one specified.'
+                            'You can either enter one value and every chain first index will be that or specify '
+                            'comma-separated values for each of the chains. Blank will not renumber.')
+        group.addParam('renameChains', params.StringParam, default='', label="Rename chains: ",
+                       help='Rename chains with desired values. Must be comma separated values for the chain names, '
+                            'in the order of the sequences. If you use symmetry, remember to keep using these new '
+                            'names to refer to the chains. Blank will not rename.')
+
         group = form.addGroup('Symmetry', condition='multiChain')
-        group.addParam('symChains', params.StringParam,
+        group.addParam('symChains', params.StringParam, default='',
                        label='Symmetry chains: ', condition='multiChain',
                        help='Specify the chains to model with symmetry. Comma separated chain pairs, in alphabetic '
                             'order corresponding to the input sequences. \ni.e: symmetry for chains first and third;'
@@ -287,7 +297,23 @@ class ProtModellerComparativeModelling(EMProtocol):
             args += '-opt {} '.format(self.getEnumText('opt'))
         args += '-nr {} '.format(self.nReps.get())
 
-        if self.symChains.get():
+        nChains = 1 if not self.multiChain.get() else len(self.inputSequences.get())
+
+        renamed = False
+        renameStr = self.renameChains.get().strip()
+        if renameStr and len(renameStr.split(',')) == nChains:
+          args += '-renam {} '.format(renameStr)
+          renamed = True
+
+        renumStr = self.renumberResidues.get().strip()
+        if renumStr:
+            renumStr = renumStr if len(renumStr.split(',')) == nChains else ','.join([renumStr] * nChains)
+            args += '-renum {} '.format(renumStr)
+            if not renamed:
+                args += '-renam {} '.format(','.join(list(string.ascii_uppercase)[:nChains]))
+
+
+        if self.symChains.get() and self.symChains.get().strip():
             symChains = self.symChains.get().replace(' ', '')
             args += '-sym {} '.format(symChains)
             args += '-symAtom {} '.format(self.symAtom.get())
