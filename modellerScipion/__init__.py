@@ -36,7 +36,7 @@ _version_ = '0.1'
 _logo = "modeller_logo.png"
 _references = ['Webb2016']
 
-MODELLER_DIC = {'name': 'modeller', 'version': '10.3', 'home': 'MODELLER_HOME'}
+MODELLER_DIC = {'name': 'modeller', 'version': '10.4', 'home': 'MODELLER_HOME'}
 
 class Plugin(pwem.Plugin):
     _supportedVersions = [MODELLER_DIC['version']]
