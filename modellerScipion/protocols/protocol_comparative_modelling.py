@@ -199,8 +199,8 @@ class ProtModellerComparativeModelling(EMProtocol):
 
     def modellerStep(self):
         pdbsFile = self.buildPDBsFile()
-        Plugin.runModeller(self, Plugin.getScriptsDir('comparative_modelling.py'),
-                           args=self._getModellerArgs(), cwd=self._getPath())
+        Plugin.runScript(self, 'comparative_modelling.py', args=self._getModellerArgs(),
+                         env='MODELLER', cwd=self._getPath())
 
     def createOutputStep(self):
         for file in os.listdir(self._getPath()):
