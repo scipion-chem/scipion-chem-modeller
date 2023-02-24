@@ -24,72 +24,66 @@
 # *
 # **************************************************************************
 
-import os
-import pwem
-from .constants import *
+import os, subprocess
+
 from pyworkflow.utils import yellowStr
+import pwem
+
+from .constants import *
+
 
 _version_ = '0.1'
 _logo = "modeller_logo.png"
 _references = ['Webb2016']
 
-MODELLER_DIC = {'name': 'modeller', 'version': '10.1', 'home': 'MODELLER_HOME'}
+MODELLER_DIC = {'name': 'modeller', 'version': '10.4', 'home': 'MODELLER_HOME'}
 
 class Plugin(pwem.Plugin):
-    _homeVar = MODELLER_DIC['home']
-    _pathVars = [MODELLER_DIC['home']]
     _supportedVersions = [MODELLER_DIC['version']]
-
 
     @classmethod
     def _defineVariables(cls):
         """ Return and write a variable in the config file.
         """
-        cls._defineEmVar(MODELLER_DIC['home'], MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'])
+        cls._defineVar("MODELLER_ENV_ACTIVATION", 'conda activate modeller-env')
 
     @classmethod
     def defineBinaries(cls, env):
-        tmpParams= 'installModellerParams.txt'
+        MODELLER_INSTALLED = 'modeller_installed'
 
-        installationCmd = 'wget %s -O %s && ' % (cls._getModellerDownloadUrl(), cls._getModellerTar())
-        installationCmd += 'tar -xf %s --strip-components 1 && ' % cls._getModellerTar()
-        installationCmd += 'rm %s && ' % cls._getModellerTar()
-
-        installationCmd += 'printf "%s" > %s && ' % (FILE_INSTALLER.format(cls.getVar(MODELLER_DIC['home'])), tmpParams)
-        installationCmd += './Install < %s > /dev/null 2>&1 && ' % tmpParams
-        installationCmd += 'rm %s && ' % tmpParams
-
-        # Creating validation file
-        MODELLER_INSTALLED = '%s_installed' % MODELLER_DIC['name']
-        installationCmd += 'touch %s' % MODELLER_INSTALLED  # Flag installation finished
+        installationCmd = cls.getCondaActivationCmd()
+        installationCmd += ' conda create -y -c salilab -n modeller-env modeller={} &&'.format(MODELLER_DIC['version'])
+        installationCmd += ' touch %s' % MODELLER_INSTALLED
 
         env.addPackage(MODELLER_DIC['name'],
                        version=MODELLER_DIC['version'],
                        tar='void.tgz',
                        commands=[(installationCmd, MODELLER_INSTALLED)],
-                       neededProgs=["wget", "tar"],
+                       neededProgs=cls.getDependencies(),
                        default=True)
 
-    @classmethod
-    def runModeller(cls, protocol, program, args, cwd=None):
-        """ Run Modeller command from a given protocol. """
-        modellerArgs = ['python3', program, *args]
-        protocol.runJob(os.path.join(cls.getVar(MODELLER_DIC['home']), 'bin/modpy.sh'), modellerArgs, cwd=cwd)
+        print(yellowStr('\nOnce Modeller is downloaded and installed, remember to write the license key '
+                        'in file {}/envs/modeller-env/lib/modeller-{}/modlib/modeller/config.py in the conda '
+                        'environment. This key can be obtained by registration in '
+                        'https://salilab.org/modeller/registration.html\n'.
+                        format(cls.getCondaEnvPath(), MODELLER_DIC['version'])))
 
+    @classmethod
+    def runScript(cls, protocol, scriptName, args, env, cwd=None, popen=False):
+        """ Run modeller command from a given protocol. """
+        scriptName = cls.getScriptsDir(scriptName)
+        fullProgram = '%s %s && %s %s' % (cls.getCondaActivationCmd(), cls.getEnvActivation(env), 'python', scriptName)
+        if not popen:
+            protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
+        else:
+            subprocess.check_call(fullProgram + args, cwd=cwd, shell=True)
 
     # ---------------------------------- Utils functions  -----------------------
-    @classmethod
-    def _getModellerDownloadUrl(cls):
-        print(yellowStr('\nOnce Modeller is downloaded and installed, remember to write the license key '
-                        'in file {}/modlib/modeller/config.py. This key can be obtained by registration in '
-                        'https://salilab.org/modeller/registration.html\n'.
-                        format(MODELLER_DIC['home'])))
-        return "\'https://salilab.org/modeller/10.1/modeller-10.1.tar.gz\'"
 
     @classmethod
-    def _getModellerTar(cls):
-        pluginHome = os.path.join(pwem.Config.EM_ROOT, MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'])
-        return pluginHome + '/' + MODELLER_DIC['name'] + '-' + MODELLER_DIC['version'] + '.tar.gz'
+    def getEnvActivation(cls, env):
+        activation = cls.getVar("{}_ENV_ACTIVATION".format(env.upper()))
+        return activation
 
     @classmethod
     def getPluginHome(cls, path=""):
@@ -99,4 +93,23 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def getScriptsDir(cls, scriptName=''):
-        return cls.getPluginHome('scripts-10_1/%s' % scriptName)
+        return cls.getPluginHome('scripts/%s' % scriptName)
+
+    @classmethod
+    def getDependencies(cls):
+        # try to get CONDA activation command
+        condaActivationCmd = cls.getCondaActivationCmd()
+        neededProgs = []
+        if not condaActivationCmd:
+            neededProgs.append('conda')
+
+        return neededProgs
+
+    @classmethod
+    def getCondaEnvPath(cls):
+        condaAct = cls.getCondaActivationCmd()
+        try:
+            condaPath = condaAct.split('$(')[1].split('/bin')[0]
+        except:
+            condaPath = 'YOUR_CONDA_PATH'
+        return condaPath

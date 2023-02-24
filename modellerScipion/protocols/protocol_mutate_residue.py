@@ -155,8 +155,8 @@ class ModellerMutateResidue(EMProtocol):
         self._insertFunctionStep('createOutputStep')
 
     def modellerStep(self, i, mutation):
-        Plugin.runModeller(self, self._getScriptsFolder('mutate_residue.py'),
-                           args=self._getModellerArgs(i, mutation), cwd=self._getExtraPath())
+        Plugin.runScript(self, 'mutate_residue.py', args=self._getModellerArgs(i, mutation),
+                         env='MODELLER', cwd=self._getExtraPath())
 
     def createOutputStep(self):
         mutatedAS = AtomStruct(self.outputFile)
@@ -212,7 +212,7 @@ class ModellerMutateResidue(EMProtocol):
 
     def _getScriptsFolder(self, path=''):
       from modellerScipion import Plugin as modPlugin
-      return modPlugin.getPluginHome('scripts-10_1/' + path)
+      return modPlugin.getPluginHome('scripts/' + path)
 
     def _getFileInputStruct(self):
       structFile = self.inputAtomStruct.get().getFileName()
