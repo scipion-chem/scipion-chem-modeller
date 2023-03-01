@@ -337,7 +337,7 @@ class ProtModellerComparativeModelling(EMProtocol):
                 tempJson = json.loads(tempLine.split(')')[1].strip())
                 pdbCode = tempJson['pdbName']
                 if 'pdbFile' in tempJson:
-                    shutil.copy(tempJson['pdbFile'], self._getExtraPath(os.path.basename(tempJson['pdbFile'])))
+                    shutil.copy(tempJson['pdbFile'], self._getExtraPath(os.path.basename(tempJson['pdbFile']).lower()))
                 else:
                     aSH = emconv.AtomicStructHandler()
                     aSH.readFromPDBDatabase(pdbCode, type='mmCif', dir=self._getExtraPath())
@@ -399,42 +399,29 @@ class ProtModellerComparativeModelling(EMProtocol):
               for i, targetSeqObj in enumerate(self.inputSequences.get()):
                   targetSeq = self.getTargetSequence(targetSeqObj).strip()
                   seqStr += '{}/'.format(targetSeq)
+              targetID = self.getTargetID(targetSeqObj)
 
               f.write('>P1;{}\nsequence:::A::{}:{}:::\n{}*\n'.
-                      format(self.getTargetID(targetSeqObj), chainAlph[i], self.getTargetID(targetSeqObj), seqStr[:-1]))
+                      format(targetID, chainAlph[i], targetID, seqStr[:-1]))
 
               for tempLine in self.templateList.get().split('\n'):
                 if tempLine.strip():
                   tempJson = json.loads(tempLine.split(')')[1].strip())
                   pdbCode = tempJson['pdbName']
 
-                  nChains = len(tempJson['chains'].split(','))
-                  first = True
-                  chains = []
-                  chainsSeqs = ''
-                  for j in range(nChains):
-                      chainId = tempJson['chains'].split(',')[j].strip().split('-')[1]
-                      protSeqCode = '{}_{}'.format(pdbCode, chainId)
-                      if first:
-                          chains.append(chainId)
+                  allChains = tempJson['chains'].split(',')
+                  chains = [allChains[0].split('-')[1], allChains[-1].split('-')[1]]
 
-                      if protSeqCode in seqDic:
-                          tempSeq = seqDic[protSeqCode]
-                      else:
-                          tempSeq = ''
-                      chainsSeqs += '{}/'.format(tempSeq)
-
-                      first = False
-
-                  chains.append(chainId)
+                  seqDic.pop(targetID)
+                  chainsSeqs = '/'.join(seqDic.values())
 
                   f.write('>P1;{}\nstructureX:{}::{}::{}:{}:::\n{}*\n'.
-                          format(pdbCode, pdbCode, chains[0], chains[1], pdbCode, chainsSeqs[:-1]))
+                          format(pdbCode, pdbCode, chains[0], chains[1], pdbCode, chainsSeqs))
 
         return alignFile
 
     def getScipionAlignFile(self, idx=''):
-        return self._getExtraPath('alignment{}.aln'.format(idx))
+        return os.path.abspath(self._getExtraPath('alignment{}.aln'.format(idx)))
 
     def parseInputAlignment(self):
         seqDic = {}
@@ -493,8 +480,14 @@ class ProtModellerComparativeModelling(EMProtocol):
           cline = 'mafft --auto --clustalout {} > {}'.format(inpFile, alignFile)
         self.runJob(cline, '')
 
+        seqIds = list(parseFasta(inpFile).keys())
         if programName == MUSCLE:
           seqDic = parseFasta(alignFile)
         else:
           seqDic = parseAlnFile(alignFile)
-        return seqDic
+
+        nSeqDic = {}
+        for i, old_key in enumerate(seqDic):
+            nSeqDic[seqIds[i]] = seqDic[old_key]
+
+        return nSeqDic
