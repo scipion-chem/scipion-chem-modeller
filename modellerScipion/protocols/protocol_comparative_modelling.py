@@ -38,6 +38,8 @@ from pyworkflow.utils import Message
 from pwem.protocols import EMProtocol
 from pwem.objects.data import AtomStruct
 import pwem.convert as emconv
+
+from pwchem import Plugin as pwchemPlugin
 from pwchem.utils.utilsFasta import parseAlnFile, parseFasta
 
 from modellerScipion import Plugin
@@ -471,13 +473,14 @@ class ProtModellerComparativeModelling(EMProtocol):
 
     def performAlignment(self, inpFile, programName, idx=''):
         alignFile = self.getScipionAlignFile(idx)
+        cline = '%s %s && ' % (pwchemPlugin.getCondaActivationCmd(), pwchemPlugin.getEnvActivation('bioconda'))
         if programName == CLUSTALO:
-          cline = 'clustalo -i {} --auto -o {} --outfmt=clu'.format(inpFile, alignFile)
+          cline += 'clustalo -i {} --auto -o {} --outfmt=clu'.format(inpFile, alignFile)
         elif programName == MUSCLE:
           alignFile = alignFile.replace('.aln', '.fa')
-          cline = 'muscle -align {} -output {}'.format(inpFile, alignFile)
+          cline += 'muscle -align {} -output {}'.format(inpFile, alignFile)
         elif programName == MAFFT:
-          cline = 'mafft --auto --clustalout {} > {}'.format(inpFile, alignFile)
+          cline += 'mafft --auto --clustalout {} > {}'.format(inpFile, alignFile)
         self.runJob(cline, '')
 
         seqIds = list(parseFasta(inpFile).keys())
