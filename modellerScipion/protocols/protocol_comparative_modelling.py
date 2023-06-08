@@ -41,6 +41,7 @@ import pwem.convert as emconv
 
 from pwchem import Plugin as pwchemPlugin
 from pwchem.utils.utilsFasta import parseAlnFile, parseFasta
+from pwchem.constants import BIOCONDA_DIC
 
 from modellerScipion import Plugin
 
@@ -473,7 +474,7 @@ class ProtModellerComparativeModelling(EMProtocol):
 
     def performAlignment(self, inpFile, programName, idx=''):
         alignFile = self.getScipionAlignFile(idx)
-        cline = '%s %s && ' % (pwchemPlugin.getCondaActivationCmd(), pwchemPlugin.getEnvActivation('bioconda'))
+        cline = '%s && ' % (pwchemPlugin.getEnvActivationCommand(BIOCONDA_DIC))
         if programName == CLUSTALO:
           cline += 'clustalo -i {} --auto -o {} --outfmt=clu'.format(inpFile, alignFile)
         elif programName == MUSCLE:

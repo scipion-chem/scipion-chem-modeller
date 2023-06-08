@@ -27,7 +27,7 @@
 import os, subprocess
 
 from pyworkflow.utils import yellowStr
-import pwem
+import pwchem
 
 from pwchem import Plugin as pwchem_plugin
 
@@ -40,7 +40,7 @@ _references = ['Webb2016']
 
 MODELLER_DIC = {'name': 'modeller', 'version': '10.4', 'home': 'MODELLER_HOME'}
 
-class Plugin(pwem.Plugin):
+class Plugin(pwchem.Plugin):
     _supportedVersions = [MODELLER_DIC['version']]
 
     @classmethod
