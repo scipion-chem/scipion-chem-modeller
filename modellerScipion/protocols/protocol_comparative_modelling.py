@@ -44,6 +44,7 @@ from pwchem.utils.utilsFasta import parseAlnFile, parseFasta
 from pwchem.constants import BIOCONDA_DIC
 
 from modellerScipion import Plugin
+from modellerScipion.constants import MODELLER_DIC
 
 AUTOMODELLER, CLUSTALO, MUSCLE, MAFFT, CUSTOM = 'AutoModeller', 'Clustal_Omega', 'Muscle', 'Mafft', 'Custom'
 chainAlph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -213,7 +214,7 @@ class ProtModellerComparativeModelling(EMProtocol):
     def modellerStep(self):
         pdbsFile = self.buildPDBsFile()
         Plugin.runScript(self, 'comparative_modelling.py', args=self._getModellerArgs(),
-                         env='MODELLER', cwd=self._getPath())
+                         envDic=MODELLER_DIC, cwd=self._getPath())
 
     def createOutputStep(self):
         for file in os.listdir(self._getPath()):
