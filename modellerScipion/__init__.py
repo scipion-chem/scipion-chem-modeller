@@ -41,7 +41,7 @@ class Plugin(pwchem.Plugin):
     @classmethod
     def _defineVariables(cls):
         """ Return and write a variable in the config file. """
-        cls._defineVar("MODELLER_ENV_ACTIVATION", 'conda activate modeller-env')
+        cls._defineEmVar(MODELLER_DIC['home'], '{}-{}'.format(MODELLER_DIC['name'], MODELLER_DICMGL_DIC['version']))
 
     @classmethod
     def defineBinaries(cls, env):
