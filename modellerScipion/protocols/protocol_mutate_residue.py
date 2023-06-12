@@ -39,7 +39,7 @@ from pwem.protocols import EMProtocol
 from pwem.objects.data import AtomStruct
 
 from modellerScipion import Plugin
-from modellerScipion.constants import AA_LIST, MODELLER_DIC
+from ..constants import AA_LIST
 
 class ModellerMutateResidue(EMProtocol):
     """
@@ -156,7 +156,7 @@ class ModellerMutateResidue(EMProtocol):
 
     def modellerStep(self, i, mutation):
         Plugin.runScript(self, 'mutate_residue.py', args=self._getModellerArgs(i, mutation),
-                         envDic=MODELLER_DIC, cwd=self._getExtraPath())
+                         env='MODELLER', cwd=self._getExtraPath())
 
     def createOutputStep(self):
         mutatedAS = AtomStruct(self.outputFile)

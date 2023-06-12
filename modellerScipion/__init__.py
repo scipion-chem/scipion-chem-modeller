@@ -27,73 +27,82 @@
 import os, subprocess
 
 from pyworkflow.utils import yellowStr
-import pwchem
+import pwem
 
-from .constants import MODELLER_DIC
-from .install_helper import InstallHelper
+from pwchem import Plugin as pwchem_plugin
+
+from .constants import *
+
 
 _version_ = '0.1'
 _logo = "modeller_logo.png"
 _references = ['Webb2016']
 
-class Plugin(pwchem.Plugin):
-	_supportedVersions = [MODELLER_DIC['version']]
+MODELLER_DIC = {'name': 'modeller', 'version': '10.4', 'home': 'MODELLER_HOME'}
 
-	@classmethod
-	def _defineVariables(cls):
-		""" Return and write a variable in the config file. """
-		cls._defineEmVar(MODELLER_DIC['home'], '{}-{}'.format(MODELLER_DIC['name'], MODELLER_DIC['version']))
+class Plugin(pwem.Plugin):
+    _supportedVersions = [MODELLER_DIC['version']]
 
-	@classmethod
-	def defineBinaries(cls, env):
-		cls.addModellerPackage(env)
-	
-	@classmethod
-	def addModellerPackage(cls, env):
-		""" This function installs Modeller package. """
-		# Instantiating install helper
-		installer = InstallHelper(MODELLER_DIC['name'], packageHome=cls.getVar(MODELLER_DIC['home']), packageVersion=MODELLER_DIC['version'])
+    @classmethod
+    def _defineVariables(cls):
+        """ Return and write a variable in the config file.
+        """
+        cls._defineVar("MODELLER_ENV_ACTIVATION", 'conda activate modeller-env')
 
-		# Defining message to print after installation
-		innerPath = os.path.join('lib', cls.getEnvName(MODELLER_DIC), 'modlib', 'modeller', 'config.py')
-		fullPath = cls.getEnvPath(packageDictionary=MODELLER_DIC, innerPath=innerPath)
-		message = '\\n\\nOnce you have obtained a license key, remember to write it in file {}\\n'.format(fullPath)
-		message += 'This key can be obtained by registration in https://salilab.org/modeller/registration.html\\n'
-		message = yellowStr(message)
+    @classmethod
+    def defineBinaries(cls, env):
+        MODELLER_INSTALLED = 'modeller_installed'
 
-		# Installing package
-		installer.getCondaEnvCommand().addCondaPackages([f'modeller={MODELLER_DIC["version"]}'], channel='salilab')\
-			.addCommand('echo -e "{}"'.format(message), 'INFO_MESSAGE_PRINTED')\
-			.addPackage(env, dependencies=['conda'])
+        installationCmd = cls.getCondaActivationCmd()
+        installationCmd += ' conda create -y -c salilab -n modeller-env modeller={} &&'.format(MODELLER_DIC['version'])
+        installationCmd += ' touch %s' % MODELLER_INSTALLED
 
-	@classmethod
-	def runScript(cls, protocol, scriptName, args, envDic, cwd=None, popen=False):
-		""" Run modeller command from a given protocol. """
-		scriptName = cls.getScriptsDir(scriptName)
-		fullProgram = '%s && %s %s' % (cls.getEnvActivationCommand(envDic), 'python', scriptName)
-		if not popen:
-			protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
-		else:
-			subprocess.check_call(fullProgram + args, cwd=cwd, shell=True)
+        env.addPackage(MODELLER_DIC['name'],
+                       version=MODELLER_DIC['version'],
+                       tar='void.tgz',
+                       commands=[(installationCmd, MODELLER_INSTALLED)],
+                       neededProgs=cls.getDependencies(),
+                       default=True)
 
-	# ---------------------------------- Utils functions  -----------------------
+        print(yellowStr('\nOnce Modeller is downloaded and installed, remember to write the license key '
+                        'in file {}/modeller-{}/modlib/modeller/config.py in the conda '
+                        'environment. This key can be obtained by registration in '
+                        'https://salilab.org/modeller/registration.html\n'.
+                        format(pwchem_plugin.getCondaEnvPath(env='modeller', path='lib'), MODELLER_DIC['version'])))
 
-	@classmethod
-	def getPluginHome(cls, path=""):
-		import modellerScipion
-		fnDir = os.path.split(modellerScipion.__file__)[0]
-		return os.path.join(fnDir, path)
+    @classmethod
+    def runScript(cls, protocol, scriptName, args, env, cwd=None, popen=False):
+        """ Run modeller command from a given protocol. """
+        scriptName = cls.getScriptsDir(scriptName)
+        fullProgram = '%s %s && %s %s' % (cls.getCondaActivationCmd(), cls.getEnvActivation(env), 'python', scriptName)
+        if not popen:
+            protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
+        else:
+            subprocess.check_call(fullProgram + args, cwd=cwd, shell=True)
 
-	@classmethod
-	def getScriptsDir(cls, scriptName=''):
-		return cls.getPluginHome('scripts/%s' % scriptName)
+    # ---------------------------------- Utils functions  -----------------------
 
-	@classmethod
-	def getDependencies(cls):
-		# try to get CONDA activation command
-		condaActivationCmd = cls.getCondaActivationCmd()
-		neededProgs = []
-		if not condaActivationCmd:
-			neededProgs.append('conda')
+    @classmethod
+    def getEnvActivation(cls, env):
+        activation = cls.getVar("{}_ENV_ACTIVATION".format(env.upper()))
+        return activation
 
-		return neededProgs
+    @classmethod
+    def getPluginHome(cls, path=""):
+        import modellerScipion
+        fnDir = os.path.split(modellerScipion.__file__)[0]
+        return os.path.join(fnDir, path)
+
+    @classmethod
+    def getScriptsDir(cls, scriptName=''):
+        return cls.getPluginHome('scripts/%s' % scriptName)
+
+    @classmethod
+    def getDependencies(cls):
+        # try to get CONDA activation command
+        condaActivationCmd = cls.getCondaActivationCmd()
+        neededProgs = []
+        if not condaActivationCmd:
+            neededProgs.append('conda')
+
+        return neededProgs

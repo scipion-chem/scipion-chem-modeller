@@ -30,5 +30,3 @@ AA_LIST = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
            'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER',
            'THR', 'TRP', 'TYR', 'VAL']
 
-# Package & conda env dictionaries
-MODELLER_DIC = {'name': 'modeller', 'version': '10.4', 'home': 'MODELLER_HOME'}
