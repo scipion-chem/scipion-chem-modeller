@@ -56,7 +56,7 @@ class Plugin(pwchem.Plugin):
 
 		# Defining message to print after installation
 		innerPath = os.path.join('lib', cls.getEnvName(MODELLER_DIC), 'modlib', 'modeller', 'config.py')
-		fullPath = cls.getEnvPath(MODELLER_DIC, innerPath=innerPath)
+		fullPath = cls.getEnvPath(packageDictionary=MODELLER_DIC, innerPath=innerPath)
 		message = '\\n\\nOnce you have obtained a license key, remember to write it in file {}\\n'.format(fullPath)
 		message += 'This key can be obtained by registration in https://salilab.org/modeller/registration.html\\n'
 		message = yellowStr(message)
