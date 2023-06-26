@@ -24,13 +24,16 @@
 # *
 # **************************************************************************
 
+# General imports
 import os, subprocess
 
+# Scipion em imports
 from pyworkflow.utils import yellowStr
 import pwchem
+from scipion.install.funcs import InstallHelper
 
+# Plugin imports
 from .constants import MODELLER_DIC
-from .install_helper import InstallHelper
 
 _version_ = '0.1'
 _logo = "modeller_logo.png"
