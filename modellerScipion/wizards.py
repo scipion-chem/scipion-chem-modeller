@@ -152,9 +152,10 @@ class AddStructSequenceWizard(SelectResidueWizard):
                         json.loads(finalResiduesList[-1].get())['index']]
                 seq = self.getSequence(finalResiduesList, idxs)
 
-            seqFile = protocol.getProject().getTmpPath('{}_{}_{}_{}.fa'.format(outName, pseudoProtId, chainId, posIdxs))
+            faName = '{}_{}_{}_{}'.format(outName, pseudoProtId, chainId, posIdxs)
+            seqFile = protocol.getProject().getTmpPath(faName + '.fa')
             with open(seqFile, 'w') as f:
-                f.write('>{}\n{}\n'.format(outName, seq))
+                f.write('>{}\n{}\n'.format(faName, seq))
 
             prevStr = getattr(protocol, outputParam[0]).get()
             lenPrev = len(prevStr.strip().split('\n')) + 1

@@ -41,6 +41,7 @@ import pwem.convert as emconv
 
 from pwchem import Plugin as pwchemPlugin
 from pwchem.utils.utilsFasta import parseAlnFile, parseFasta
+from pwchem.utils import getBaseName
 from pwchem.constants import BIOCONDA_DIC
 
 from modellerScipion import Plugin
@@ -380,9 +381,10 @@ class ProtModellerComparativeModelling(EMProtocol):
                   if tempLine.strip():
                       tempJson = json.loads(tempLine.split(')')[1].strip())
                       pdbCode, chain = tempJson['pdbName'], tempJson['chain']
+                      faName = getBaseName(tempJson['seqFile'])
                       idxs = tempJson['index'].split('-')
 
-                      tempSeq = seqDic[pdbCode]
+                      tempSeq = seqDic[faName]
                       f.write('>P1;{}\nstructureX:{}:{}:{}:{}:{}:{}:::\n{}*\n'.
                               format(pdbCode, pdbCode, idxs[0], chain, idxs[1], chain, pdbCode, tempSeq))
 
