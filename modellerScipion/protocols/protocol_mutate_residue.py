@@ -152,14 +152,14 @@ class ModellerMutateResidue(EMProtocol):
         for mutIdx in range(len(restypes)):
             mutation = chains[mutIdx], respos[mutIdx], restypes[mutIdx]
             self._insertFunctionStep('modellerStep', mutIdx, mutation)
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep('createOutputStep', mutIdx)
 
     def modellerStep(self, i, mutation):
         Plugin.runScript(self, 'mutate_residue.py', args=self._getModellerArgs(i, mutation),
                          envDic=MODELLER_DIC, cwd=self._getExtraPath())
 
-    def createOutputStep(self):
-        mutatedAS = AtomStruct(self.outputFile)
+    def createOutputStep(self, i):
+        mutatedAS = AtomStruct(self.getOutputFile(i))
         self._defineOutputs(mutatedAtomStruct=mutatedAS)
 
     # --------------------------- UTILS functions -----------------------------
@@ -187,7 +187,7 @@ class ModellerMutateResidue(EMProtocol):
     def _getModellerArgs(self, i, mutation):
       ASFile = self._getFileInputStruct()
       modelbase, ext = os.path.splitext(ASFile.split('/')[-1])
-      self.outputFile = os.path.abspath(self._getPath('{}_mutant_{}.pdb'.format(modelbase, i+1)))
+      outputFile = os.path.abspath(self.getOutputFile(i))
 
       chain, respos, restype = mutation
 
@@ -195,7 +195,7 @@ class ModellerMutateResidue(EMProtocol):
           ASFile = os.path.abspath(self._getPath('{}_mutant_{}.pdb'.format(modelbase, i)))
 
       args = ['-i', ASFile, '-p', respos, '-r', restype, '-c', chain, '-s', self.seed.get(),
-              '-o', self.outputFile]
+              '-o', outputFile]
 
       args += ['-contactShell', self.contactShell.get(), '-updateDynamic', self.updateDynamic.get()]
       if self.dynamicSphere.get():
@@ -217,6 +217,11 @@ class ModellerMutateResidue(EMProtocol):
     def _getFileInputStruct(self):
       structFile = self.inputAtomStruct.get().getFileName()
       return os.path.abspath(structFile)
+
+    def getOutputFile(self, i):
+      ASFile = self._getFileInputStruct()
+      modelbase, ext = os.path.splitext(ASFile.split('/')[-1])
+      return  self._getPath('{}_mutant_{}.pdb'.format(modelbase, i+1))
 
 
     # --------------------------- INFO functions -----------------------------------
