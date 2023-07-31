@@ -99,9 +99,10 @@ class TestModellerComparativeModelling(BaseTest):
                     json.loads(finalResiduesList[-1].get())['index']]
             seq = getSequence(finalResiduesList, idxs)
 
-            seqFile = cls.proj.getTmpPath('{}_{}_{}_{}.fa'.format(pdbId, *pdbDic[pdbId]))
+            seqName = '{}_{}_{}_{}'.format(pdbId, *pdbDic[pdbId])
+            seqFile = cls.proj.getTmpPath('{}.fa'.format(seqName))
             with open(seqFile, 'w') as f:
-                f.write('>{}\n{}\n'.format(pdbId, seq))
+                f.write('>{}\n{}\n'.format(seqName, seq))
 
 
     @classmethod
