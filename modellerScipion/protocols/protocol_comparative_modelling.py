@@ -405,7 +405,10 @@ class ProtModellerComparativeModelling(EMProtocol):
               for i, targetSeqObj in enumerate(self.inputSequences.get()):
                   targetSeq = self.getTargetSequence(targetSeqObj).strip()
                   seqStr += '{}/'.format(targetSeq)
-              targetID = self.getTargetID(targetSeqObj)
+
+                  targetID = self.getTargetID(targetSeqObj)
+                  if targetID in seqDic:
+                    seqDic.pop(targetID)
 
               f.write('>P1;{}\nsequence:::A::{}:{}:::\n{}*\n'.
                       format(targetID, chainAlph[i], targetID, seqStr[:-1]))
@@ -418,7 +421,6 @@ class ProtModellerComparativeModelling(EMProtocol):
                   allChains = tempJson['chains'].split(',')
                   chains = [allChains[0].split('-')[1], allChains[-1].split('-')[1]]
 
-                  seqDic.pop(targetID)
                   chainsSeqs = '/'.join(seqDic.values())
 
                   f.write('>P1;{}\nstructureX:{}::{}::{}:{}:::\n{}*\n'.
