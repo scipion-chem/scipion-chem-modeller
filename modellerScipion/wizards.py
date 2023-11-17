@@ -221,6 +221,11 @@ SelectChainWizardQT().addTarget(protocol=ProtModellerComparativeModelling,
                                 inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']}],
                                 outputs=['tempChain'])
 
+SelectResidueWizard().addTarget(protocol=ProtModellerComparativeModelling,
+                                targets=['inSeqPositions'],
+                                inputs=['inputSequence'],
+                                outputs=['inSeqPositions'])
+
 SelectResidueWizardQT().addTarget(protocol=ProtModellerComparativeModelling,
                                   targets=['tempPositions'],
                                   inputs=[{'templateOrigin': ['inputAtomStruct', 'pdbTemplate']},

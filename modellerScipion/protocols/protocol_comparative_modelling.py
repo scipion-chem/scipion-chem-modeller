@@ -110,6 +110,10 @@ class ProtModellerComparativeModelling(EMProtocol):
                        pointerClass='Sequence', allowsNull=True,
                        label="Input sequence to predict: ", condition='not multiChain',
                        help='Select the sequence whose atomic structure will be predicted')
+        group.addParam('inSeqPositions', params.StringParam,
+                       label='Input sequence positions: ', condition='not multiChain',
+                       help='Specify the positions of the input sequence to use in the alignment. '
+                            'If None, modeller will use the whole sequence')
         group.addParam('inputSequences', params.PointerParam,
                       pointerClass='SetOfSequences', allowsNull=True,
                       label="Input sequences to predict: ", condition='multiChain',
@@ -268,6 +272,9 @@ class ProtModellerComparativeModelling(EMProtocol):
 
     def getTargetSequence(self, seqObj=None):
         if not seqObj:
+          if self.inSeqPositions.get().strip():
+            return json.loads(self.inSeqPositions.get())['residues']
+          else:
             seqObj = self.inputSequence.get()
         return seqObj.getSequence()
 
