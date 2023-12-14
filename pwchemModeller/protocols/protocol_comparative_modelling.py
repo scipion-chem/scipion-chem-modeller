@@ -44,8 +44,8 @@ from pwchem.utils.utilsFasta import parseAlnFile, parseFasta
 from pwchem.utils import getBaseName
 from pwchem.constants import BIOCONDA_DIC
 
-from modellerScipion import Plugin
-from modellerScipion.constants import MODELLER_DIC
+from pwchemModeller import Plugin
+from pwchemModeller.constants import MODELLER_DIC
 
 AUTOMODELLER, CLUSTALO, MUSCLE, MAFFT, CUSTOM = 'AutoModeller', 'Clustal_Omega', 'Muscle', 'Mafft', 'Custom'
 chainAlph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
