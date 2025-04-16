@@ -57,10 +57,7 @@ class ProtModellerComparativeModelling(EMProtocol):
     https://salilab.org/modeller/manual/node15.html
     """
     _label = 'Comparative modelling'
-
-    def __init__(self, **kwargs):
-        EMProtocol.__init__(self, **kwargs)
-        self.stepsExecutionMode = params.STEPS_PARALLEL
+    stepsExecutionMode = params.STEPS_PARALLEL
 
     # -------------------------- DEFINE param functions ----------------------
     def _addTemplateForm(self, form):
@@ -110,7 +107,7 @@ class ProtModellerComparativeModelling(EMProtocol):
                        pointerClass='Sequence', allowsNull=True,
                        label="Input sequence to predict: ", condition='not multiChain',
                        help='Select the sequence whose atomic structure will be predicted')
-        group.addParam('inSeqPositions', params.StringParam,
+        group.addParam('inSeqPositions', params.StringParam, default='',
                        label='Input sequence positions: ', condition='not multiChain',
                        help='Specify the positions of the input sequence to use in the alignment. '
                             'If None, modeller will use the whole sequence')
