@@ -1,4 +1,5 @@
-"""A setuptools based setup module.
+"""
+A setuptools based setup module.
 
 See:
 https://packaging.python.org/en/latest/distributing.html
@@ -33,8 +34,8 @@ setup(
     keywords='scipion modeller scipion-3.0 cheminformatics',  # Optional
     packages=find_packages(),
     install_requires=[requirements],
-    entry_points={'pyworkflow.plugin': 'modellerScipion = modellerScipion'},
+    entry_points={'pyworkflow.plugin': 'pwchemModeller = pwchemModeller'},
     package_data={  # Optional
-       'modellerScipion': ['modeller_logo.png', 'protocols.conf'],
+       'pwchemModeller': ['modeller_logo.png', 'protocols.conf'],
     }
 )

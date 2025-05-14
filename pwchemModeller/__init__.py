@@ -83,8 +83,8 @@ class Plugin(pwchem.Plugin):
 
 	@classmethod
 	def getPluginHome(cls, path=""):
-		import modellerScipion
-		fnDir = os.path.split(modellerScipion.__file__)[0]
+		import pwchemModeller
+		fnDir = os.path.split(pwchemModeller.__file__)[0]
 		return os.path.join(fnDir, path)
 
 	@classmethod

@@ -38,8 +38,8 @@ from pyworkflow.utils import Message
 from pwem.protocols import EMProtocol
 from pwem.objects.data import AtomStruct
 
-from modellerScipion import Plugin
-from modellerScipion.constants import AA_LIST, MODELLER_DIC
+from pwchemModeller import Plugin
+from pwchemModeller.constants import AA_LIST, MODELLER_DIC
 
 class ModellerMutateResidue(EMProtocol):
     """
@@ -211,7 +211,7 @@ class ModellerMutateResidue(EMProtocol):
       return args
 
     def _getScriptsFolder(self, path=''):
-      from modellerScipion import Plugin as modPlugin
+      from pwchemModeller import Plugin as modPlugin
       return modPlugin.getPluginHome('scripts/' + path)
 
     def _getFileInputStruct(self):

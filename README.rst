@@ -11,6 +11,8 @@ These tools will make it possible to carry out different functions for modelling
 Therefore, this plugin allows to use programs from the Modeller software suite
 within the Scipion framework.
 
+Full documentation to this plugin can be found in the `official documentation page <https://scipion-chem.github.io/docs/plugins/modeller/index.html>`_.
+
 ==========================
 Install this plugin
 ==========================
@@ -21,12 +23,12 @@ You will need to use `Scipion3 <https://scipion-em.github.io/docs/docs/scipion
 
 1. **Install the plugin in Scipion**
 
-**The installation is automatic, but you need to register into the
-modeller website (https://salilab.org/modeller/registration.html) in order to obtain a license key,
-which must be edited in the modeller/modlib/modeller/config.py file**.
+The installation is automatic, but you need to register into
+`modeller's website <https://salilab.org/modeller/registration.html>`_ in order to obtain a license key,
+which must be edited in the ``modeller/modlib/modeller/config.py`` file.
 
 Modeller is installed as a python module, however the module is only callable by using the bash file
-modeller/bin/modpy.sh. For more information: https://salilab.org/modeller/download_installation.html
+modeller/bin/modpy.sh. Click `here <https://salilab.org/modeller/download_installation.html>`_ for more information.
 
 - **Install the stable version (Not available yet)**
 

@@ -24,8 +24,5 @@
 # *
 # **************************************************************************
 
-
-from modellerScipion.tests.test_comparative_modelling import *
-from modellerScipion.tests.test_mutate_residue import *
-
-
+from pwchemModeller.tests.test_comparative_modelling import *
+from pwchemModeller.tests.test_mutate_residue import *
