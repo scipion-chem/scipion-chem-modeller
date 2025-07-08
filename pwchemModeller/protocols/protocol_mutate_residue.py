@@ -45,6 +45,45 @@ class ModellerMutateResidue(EMProtocol):
     """
     Performs a residue substitution in a protein structure.
     https://salilab.org/modeller/wiki/Mutate%20model
+
+User IA Manual: MutateResidue Protocol
+
+The MutateResidue protocol allows users to introduce point mutations into a
+protein structure using Modeller within the Scipion-Chem environment. It is
+designed for studies where single-residue substitutions need to be modeled,
+such as in mutational scanning, protein stability prediction, or structure-guided
+functional analysis.
+
+To begin, the user must provide a protein structure in PDB format. This structure
+serves as the template onto which the desired mutation will be applied. The
+protocol requires the user to specify the residue to be mutated by defining its
+chain identifier, residue number, and the target amino acid to be introduced.
+The numbering must match that of the input PDB file to ensure correct mapping.
+
+The modeling is handled by Modeller, which rebuilds the side chain of the mutated
+residue and performs local optimization of the surrounding region. The user can
+choose whether the entire model should be refined or whether the adjustment should
+be limited to a specific radius around the mutation site. This control allows for
+a balance between computational efficiency and structural realism.
+
+Parameters such as the number of models to generate and the optimization level
+can also be configured. Generating multiple models allows sampling of different
+side chain conformations, which can be useful when the rotameric state of the
+mutation is uncertain. The user may select whether the final output should
+include all generated models or only the best-scoring one, based on Modeller?s
+objective function or energy criteria.
+
+After execution, the protocol outputs one or more mutant structures in standard
+PDB format. Each model includes the applied mutation and its surrounding context,
+with coordinates adjusted according to Modeller?s optimization procedure. These
+structures can be visualized within Scipion or passed to downstream protocols
+for energy evaluation, binding prediction, or molecular dynamics simulation.
+
+In summary, the MutateResidue protocol provides a reliable and automated method
+to introduce and model point mutations in protein structures. It supports precise
+control over the mutation site and the refinement procedure, making it suitable
+for both large-scale mutational workflows and individual structural hypotheses.
+
     """
     _label = 'Mutate structure residue'
 
