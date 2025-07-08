@@ -55,6 +55,49 @@ class ProtModellerComparativeModelling(EMProtocol):
     """
     Performs a comparative modelling prediction using modeller and a set of similar structures
     https://salilab.org/modeller/manual/node15.html
+
+User IA Manual: ComparativeModelling Protocol
+
+The ComparativeModelling protocol allows the construction of 3D protein models
+based on homologous templates using Modeller within the Scipion-Chem framework.
+This protocol is intended for cases in which the structure of the target protein
+is unknown but one or more related structures are available. It performs
+automated sequence-to-structure alignment, model generation, and evaluation to
+produce atomic models of the target sequence.
+
+To begin, the user must provide a target sequence in FASTA format. This sequence
+should correspond to the protein of interest, for which a structural model is to
+be built. Alongside the sequence, the user must supply one or more template
+structures, typically in PDB format, that are known to be homologous to the
+target. These templates serve as the structural basis for modeling, and the
+quality of the final models depends strongly on their similarity to the target.
+
+The user can select whether to use a predefined sequence alignment or to allow
+the protocol to generate an alignment automatically. If the alignment is
+provided externally, it must be in a format compatible with Modeller. Otherwise,
+the protocol will run an alignment step using internal tools and default
+parameters. The alignment is used to map the residues of the target to the
+templates, which guides how structural segments are transferred or rebuilt.
+
+Key parameters include the number of models to generate and whether to apply
+loop refinement or optimization to poorly aligned regions. The user may also
+control the degree of energy minimization performed during modeling and the
+number of iterations applied to the objective function. These settings influence
+how closely the generated structures match physical and stereochemical
+constraints.
+
+Once the modeling process is complete, the protocol outputs the generated models
+along with assessment scores such as DOPE or GA341, which estimate model quality.
+The models are stored in standard formats and can be visualized or evaluated
+further within Scipion-Chem or exported to other pipelines. The protocol also
+records the alignment, the coordinates of each model, and metadata that links
+models to their templates and evaluation scores.
+
+In summary, this protocol automates the generation of homology-based models
+using Modeller, enabling users to construct reliable 3D structures of protein
+targets for which no experimental structure is available. It integrates alignment,
+modeling, and quality evaluation into a single reproducible workflow.
+
     """
     _label = 'Comparative modelling'
     stepsExecutionMode = params.STEPS_PARALLEL
