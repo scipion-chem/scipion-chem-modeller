@@ -45,6 +45,89 @@ class ModellerMutateResidue(EMProtocol):
     """
     Performs a residue substitution in a protein structure.
     https://salilab.org/modeller/wiki/Mutate%20model
+
+    AI Generated:
+
+        ModellerMutateResidue - User Manual
+
+        Overview
+        --------
+        The ModellerMutateResidue protocol allows users to introduce point mutations into
+        a protein structure using Modeller within the Scipion-Chem platform. It is
+        designed for mutational studies, protein stability analysis, or structure-guided
+        functional investigations, enabling precise residue substitutions and local
+        structural optimization.
+
+        Input Requirements
+        ------------------
+        1. **Protein Structure**:
+           - Provide an `AtomStruct` object corresponding to the PDB structure to be mutated.
+           - Ensure the chain identifiers and residue numbering match the input PDB file.
+
+        2. **Mutation Definition**:
+           - Specify the chain, residue number, and the target amino acid.
+           - Multiple mutations can be defined sequentially using the `toMutateList` parameter.
+           - Use the `addMutation` wizard to add mutations to the list.
+
+        3. **Random Seed** (optional):
+           - Configure a seed value to control stochastic aspects of side chain sampling.
+
+        4. **Energy Parameters**:
+           - Distance cutoffs (`contactShell`) and nonbond recalculation thresholds (`updateDynamic`).
+           - Soft-sphere restraints (`dynamicSphere` and `sphereStdv`).
+           - Optional Lennard-Jones and Coulomb energy terms, with switching parameters.
+           - Non-bonded spline restraints (`dynamicModeller`) for local optimization.
+
+        Workflow
+        --------
+        1. **Parse mutations**:
+           - Sequentially read mutations from the list.
+           - Extract chain identifiers, residue positions, and residue types.
+
+        2. **Residue mutation**:
+           - For each defined mutation:
+             - Apply the substitution at the specified residue.
+             - Perform local energy optimization on the mutated residue and surrounding atoms.
+             - Use soft-sphere, Lennard-Jones, Coulomb, or spline restraints as configured.
+
+        3. **Model generation**:
+           - Generate one or more models per mutation.
+           - Intermediate models are used as input for subsequent mutations if multiple mutations are defined.
+
+        4. **Output generation**:
+           - Save mutated structures as `AtomStruct` objects in standard PDB format.
+           - Each output file contains the applied mutation and locally optimized geometry.
+
+        Outputs
+        -------
+        - **Mutated structures**: `AtomStruct` objects containing one or more PDB models
+          with applied mutations.
+        - **Optional intermediate models**: used when multiple mutations are processed sequentially.
+
+        Validation & Warnings
+        ---------------------
+        - Ensure mutations correspond to valid residues in the input structure.
+        - Only single-point substitutions are supported; multi-residue range mutations are not allowed.
+        - Verify chain identifiers and residue numbering to avoid mapping errors.
+        - Energy restraints parameters (soft-sphere, Lennard-Jones, Coulomb) should be set
+          in accordance with the structure’s size and resolution.
+        - Mutations are applied sequentially; errors in early mutations may propagate.
+
+        Practical Recommendations
+        -------------------------
+        - Start with a high-quality experimental structure to ensure realistic modeling.
+        - Use multiple models to sample rotameric conformations of the mutated residue.
+        - Limit the number of simultaneous mutations for clarity and computational efficiency.
+        - Review energy parameters for local optimization to avoid unrealistic clashes.
+        - Inspect generated structures visually and/or using scoring metrics before downstream analysis.
+
+        Final Perspective
+        -----------------
+        ModellerMutateResidue provides a reproducible and automated method to model
+        single-residue substitutions in protein structures. It integrates mutation
+        definition, local optimization, and energy evaluation into a single protocol,
+        facilitating structural and functional studies of protein variants.
+
     """
     _label = 'Mutate structure residue'
 
